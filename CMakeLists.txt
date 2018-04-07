@@ -11,6 +11,23 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_library(cuda_base
         cudaMain.cu cudaMain.h
+        camera.cpp camera.h
+        color.cpp color.h
+        gl_utils.cpp gl_utils.h
+        lightsource.h
+        material.cpp material.h
+        object.h
+        pointlightsource.h
+        quadric.cpp quadric.h
+        ray.cpp ray.h
+        renderengine.cpp renderengine.h
+        shader_utils.cpp shader_utils.h
+        sphere.cpp sphere.h
+        structs.h
+        triangle.cpp triangle.h
+        vector3D.cpp vector3D.h
+        world.cpp world.h
+
         dummy.cpp cudaHeaders.h)
 
 target_compile_features(cuda_base PUBLIC cxx_std_11)
@@ -35,7 +52,7 @@ include_directories(
 set(OPENGL_RELATED_LIBS
         ${OPENGL_LIBRARY}
         glfw
-#        glew32
+        glew32s
         )
 add_definitions(
         -DTW_STATIC
