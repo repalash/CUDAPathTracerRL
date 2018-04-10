@@ -1,4 +1,5 @@
 #include "camera.h"
+#include "cudaHeaders.h"
 #include <math.h>
 #include <iostream>
 
@@ -34,7 +35,7 @@ Camera::~Camera()
 }
 
 //Get direction of viewing ray from pixel coordinates (i, j)
-const Vector3D Camera::get_ray_direction(const float i, const float j) const
+__host__ __device__ const Vector3D Camera::get_ray_direction(const float i, const float j) const
 {
 	Vector3D dir(0.0, 0.0, 0.0);
 	dir += -w * focalDistance;

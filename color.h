@@ -25,7 +25,7 @@ public:
     friend Color operator / (const Color& c, double f);
     friend Color operator + (const Color& c1, const Color& c2);
     //private:
-    //Data memebrs are not private because of performance hits. 
+    //Data members are not private because of performance hits.
     //Its better to access directly in critical cases than to use functions!    
     double r;
     double g;

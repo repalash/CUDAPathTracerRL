@@ -1,12 +1,13 @@
 #include <vector>
 #include "world.h"
 #include "material.h"
+#include "cudaHeaders.h"
 #include <iostream>
 #include <cmath>
 #include <random>
 
 unsigned int x=123456789, y=362436069, z=521288629;
-float xorshf96() {          //3.6 times better performance than rand()
+__host__ __device__ float xorshf96() {          //3.6 times better performance than rand()
 //	return 1.f*rand()/RAND_MAX;
 	unsigned int t;
 	x ^= x << 16;
@@ -19,7 +20,7 @@ float xorshf96() {          //3.6 times better performance than rand()
 	return 1.0f*z/0xffffffff;
 }
 
-Color Material::shade(const Ray& incident, const bool isSolid) const
+__host__ __device__ Color Material::shade(const Ray& incident, const bool isSolid) const
 {
 	if(!incident.didHit()) return world->getBackground();
 
@@ -81,7 +82,6 @@ Color Material::shade(const Ray& incident, const bool isSolid) const
 		//do diffuse, Lambertian sampling
 		double alpha=2*M_PI*xorshf96(),
 				z=xorshf96(), sineTheta = sqrt(1-z);
-
 
 		//generate basis
 		Vector3D w=incident.getNormal();

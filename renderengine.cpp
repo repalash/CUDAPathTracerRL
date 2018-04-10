@@ -1,11 +1,12 @@
 #include <random>
 #include "renderengine.h"
+#include "cudaHeaders.h"
 #include <cmath>
 #include <iostream>
 
 #define SAMPLE 4
 
-const Color RenderEngine::trace(const float i, const float j)
+__host__ __device__ const Color RenderEngine::trace(const float i, const float j)
 {
 	Vector3D ray_dir = camera->get_ray_direction(i, j);
 	Ray ray(camera->get_position(), ray_dir);

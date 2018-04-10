@@ -25,6 +25,5 @@ void World::addLight(LightSource* ls) {
 	Material *m = new Material(this); m->ka = 1; m->color = Color(ls->getIntensity());
 	Sphere *sphere = new Sphere(ls->getPosition(), 8, m);
 	sphere->setLightSource(ls);
-	lightSourceList.push_back(ls);
 	addObject(sphere);
 }

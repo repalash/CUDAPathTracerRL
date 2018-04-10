@@ -14,14 +14,13 @@ class World
 {
 private:
 	std::vector<Object*> objectList;
-	std::vector<LightSource*> lightSourceList;
 
 	Color ambient;
 	Color background; //Background color to shade rays that miss all objects
 
 public:
 	World():
-		objectList(0), lightSourceList(0), ambient(0), background(0)
+		objectList(0), ambient(0), background(0)
 	{}
 	void setBackground(const Color& bk) { background = bk;}
 	Color getBackground() { return background;}
@@ -35,7 +34,6 @@ public:
 	}
 	float firstIntersection(Ray& ray);
 	Color shade_ray(Ray& ray);
-	const std::vector<LightSource *> &getLightSourceList() const { return lightSourceList; }
 };
 
 #endif
