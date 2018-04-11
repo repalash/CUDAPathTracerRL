@@ -7,7 +7,7 @@
 
 class Object;
 
-const float SMALLEST_DIST = 1e-4; //Constant used to dismiss intersections very close to previous
+const float SMALLEST_DIST = 1e-4f; //Constant used to dismiss intersections very close to previous
 class Ray
 {
 private:
