@@ -34,7 +34,7 @@ using namespace glm;
 //Globals
 GLuint program;
 GLint attribute_coord2d;
-int screen_width = 360, screen_height = 240; //Both even numbers
+int screen_width = 640, screen_height = 480; //Both even numbers
 float quadVertices[] = {-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1}; //2D screen space coordinates
 GLuint texImage;
 GLint uniform_texImage;
@@ -65,7 +65,7 @@ int init_resources(void)
 
     //Initialize raytracer objects
     Vector3D camera_position(0, 3, 16);
-    Vector3D camera_target(0,0,0); //Looking down -Z axis
+    Vector3D camera_target(0,0,0);
     Vector3D camera_up(0, 1, 0);
     float camera_fovy =  45;
     camera = new Camera(camera_position, camera_target, camera_up, camera_fovy, screen_width, screen_height);
@@ -74,10 +74,6 @@ int init_resources(void)
     world->setAmbient(Color(1));
     world->setBackground(Color(0, 0, 0));
 
-    Material *glossy = new Material(world); //glossy
-    glossy->color = Color(1, 1, 0.23);  glossy->n = 20;
-    Material *mirror = new Material(world); //mirror
-    mirror->color = Color(0.8, 1, 0.9);  mirror->kr = 0.8;
     Material *mPlane = new Material(world);
     mPlane->color = Color(0.9,0.9,0.9); mPlane->kr = 0;
     Material *mPlane2 = new Material(world);
@@ -88,6 +84,10 @@ int init_resources(void)
     mPlane4->color = Color(0.1,0.9,0.2); mPlane4->kr = 0;
     Material *glass = new Material(world); //dielectric
     glass->color = Color(1, 0.95, 0.95); glass->eta = 1.75; glass->kt=1;
+    Material *glossy = new Material(world); //glossy
+    glossy->color = Color(1, 1, 0.23);  glossy->n = 20;
+    Material *mirror = new Material(world); //mirror
+    mirror->color = Color(0.8, 1, 0.9);  mirror->kr = 0.8;
 
     world->addObject(new Sphere(Vector3D(2, -3, 0), 2, glass));
     world->addObject(new Sphere(Vector3D(0, 0, -3), 3, glossy));
@@ -98,7 +98,6 @@ int init_resources(void)
     world->addObject(new Sphere(Vector3D(-2009, 0, 0), 2000, mPlane2)); //left
     world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mirror)); //front
     world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane4)); //back
-//    world->addObject(new Sphere(Vector3D(0, 2016, 0), 2000, mPlane));
 
     LightSource *light = new PointLightSource(world, Vector3D(0, 16, 0), Color(4,4,4));
     world->addLight(light);

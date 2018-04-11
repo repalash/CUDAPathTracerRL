@@ -24,18 +24,19 @@ bool RenderEngine_GPU::renderLoop() {
     cudaEventCreate(&stop);
 
     //init vars
-    unsigned char *bitmap_gpu;
-    cudaMalloc(reinterpret_cast<void**>(&bitmap_gpu), IMAGE_HEIGHT * IMAGE_WIDTH * 3 * sizeof(unsigned char));
     Camera_GPU cam(camera);
     World_GPU wor(world);
+
+    unsigned char *bitmap_gpu;
+    cudaMalloc(reinterpret_cast<void**>(&bitmap_gpu), cam.size.y * cam.size.x * 3 * sizeof(unsigned char));
 
     cudaEventRecord(begin);
 
     //DO copy all variables
-    cudaMemcpy(bitmap_gpu, camera->getBitmap(), IMAGE_HEIGHT * IMAGE_WIDTH * 3 * sizeof(unsigned char), cudaMemcpyHostToDevice);
+    cudaMemcpy(bitmap_gpu, camera->getBitmap(), cam.size.y * cam.size.x * 3 * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
     dim3 threadsperblock(SAMPLE,SAMPLE,MAX_THREADS_IN_BLOCK/(SAMPLE*SAMPLE));
-    dim3 blockspergrid(IMAGE_HEIGHT * COLUMNS_IN_ONCE/threadsperblock.z);
+    dim3 blockspergrid(cam.size.y * COLUMNS_IN_ONCE/threadsperblock.z);
 
     cudaEventRecord(begin_kernel);
     Main_Render_Kernel << < blockspergrid, threadsperblock >> >(i, bitmap_gpu, cam, wor, steps, rand());
@@ -43,7 +44,7 @@ bool RenderEngine_GPU::renderLoop() {
     gpuErrchk(cudaPeekAtLastError());
 
     //Copy all variables back
-    cudaMemcpy(camera->getBitmap(), bitmap_gpu, IMAGE_HEIGHT * IMAGE_WIDTH * 3 * sizeof(unsigned char), cudaMemcpyDeviceToHost);
+    cudaMemcpy(camera->getBitmap(), bitmap_gpu, cam.size.y * cam.size.x * 3 * sizeof(unsigned char), cudaMemcpyDeviceToHost);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop_kernel);
@@ -156,8 +157,8 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
     unsigned int q = threadIdx.y;
 
     unsigned int j = (blockIdx.x * blockDim.z + threadIdx.z);
-    unsigned int i = startI + j/IMAGE_HEIGHT;
-    j %= IMAGE_HEIGHT;
+    unsigned int i = startI + j/cam.size.y;
+    j %= cam.size.y;
 
     unsigned int seed = 12345678 + p*11234 + q*23145 + i*13456 + j*14567 + steps*5678 + mrand*49574;
     float _i = i + (p + Random_GPU(seed)) / SAMPLE;
@@ -167,8 +168,8 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
     //Initial Ray direction
     float3 dir = make_float3(0,0,0);
     dir += -cam.w * 1.207107f;
-    float xw = (1.0f*IMAGE_WIDTH/IMAGE_HEIGHT * (_i - IMAGE_WIDTH / 2.0f + 0.5f) / IMAGE_WIDTH);
-    float yw = ((_j - IMAGE_HEIGHT / 2.0f + 0.5f) / IMAGE_HEIGHT);
+    float xw = (1.0f*cam.size.x/cam.size.y * (_i - cam.size.x / 2.0f + 0.5f) / cam.size.x);
+    float yw = ((_j - cam.size.y / 2.0f + 0.5f) / cam.size.y);
     dir += cam.u * xw;
     dir += cam.v * yw;
     dir = normalize(dir);
@@ -188,7 +189,7 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
     if(p==0 && q==0){
         c = c+val[threadIdx.z];
         c = clamp(c/(SAMPLE*SAMPLE), 0, 1);
-        int index = (i + j*IMAGE_WIDTH)*3;
+        int index = (i + j*cam.size.x)*3;
         bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * steps + 256  * c.x) / (steps + 1));
         bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * steps + 256 * c.y) / (steps + 1));
         bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * steps + 256  * c.z) / (steps + 1));
