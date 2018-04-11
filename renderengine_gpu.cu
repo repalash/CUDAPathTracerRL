@@ -13,20 +13,14 @@
 #define AMBIENT_COLOR make_float3(1,1,1)
 #define EPSILON 0.0001f
 #define INF 1<<24
-#define BACKGROUND make_float3(0.1,0.1,0.1)
+#define BACKGROUND make_float3(0,0,0)
+#define WARP_SIZE 32
 
 __device__ float xorshf96_gpu(dim3* s) {
-    dim3 s2 = *s;
-    s2.x ^= s2.x << 16;
-    s2.x ^= s2.x >> 5;
-    s2.x ^= s2.x << 1;
-    unsigned int t;
-    t = s2.x;
-    s2.x = s2.y;
-    s2.y = s2.z;
-    s2.z = t ^ s2.x ^ s2.y;
-    *s = s2;
-    return 1.0f*(s2.z)/0xffffffff;
+    s->x = (s->x * 256634895 + 2343786)%837234723;
+    s->y = (s->x + s->y * 23565645 + 456893)%234235723;
+    s->z = (s->y + s->z * 34578345 + 7547556)%534546723;
+    return 1.0f*(s->z)/534546723;
 }
 __host__ void Vector3D_To_float3(Vector3D a, float3 *b){
     b->x = static_cast<float>(a.X());
@@ -50,15 +44,15 @@ struct Ray_GPU {
     }
 };
 struct Sphere_GPU {
-    float rad;            // radius
-    float3 pos, col; // position, emission, colour
-    char light;
+    float rad;
+    float3 pos, col;
+    int light;
     __host__ Sphere_GPU(){}
     __host__ Sphere_GPU(Sphere *s) {
         rad = static_cast<float>(s->getRadius());
         Vector3D_To_float3(s->getPosition(), &pos);
         Color_To_float3(s->getMaterial()->color, &col);
-        if((light = s->isLightSource())){
+        if((light = s->isLightSource()?1:0)){
             Color_To_float3(s->getLightSource()->getIntensity(), &col);
         }
     }
@@ -143,7 +137,7 @@ bool RenderEngine_GPU::renderLoop() {
     //DO copy all variables
     cudaMemcpy(bitmap_gpu, camera->getBitmap(), IMAGE_HEIGHT * IMAGE_WIDTH * 3 * sizeof(unsigned char), cudaMemcpyHostToDevice);
 
-    dim3 threadsperblock(SAMPLE,SAMPLE,MAX_THREADS_IN_BLOCK/(SAMPLE*SAMPLE)); //8,8,12
+    dim3 threadsperblock(SAMPLE,SAMPLE,MAX_THREADS_IN_BLOCK/(SAMPLE*SAMPLE));
     dim3 blockspergrid(IMAGE_HEIGHT * COLUMNS_IN_ONCE/threadsperblock.z);
 
     cudaEventRecord(begin_kernel);
@@ -173,7 +167,7 @@ bool RenderEngine_GPU::renderLoop() {
         steps++;
         camera->incSteps();
 //        std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
-        return false;
+        return steps>10;
     }
     return false;
 }
@@ -181,6 +175,16 @@ bool RenderEngine_GPU::renderLoop() {
 
 
 __device__ float3 computeColor(Ray_GPU i, dim3 *j, World_GPU wor);
+
+__device__ float3 warpReduceSumTriple(float3 val) {
+#pragma unroll
+    for (int offset = warpSize / 2; offset > 0; offset /= 2) {
+        val.x += __shfl_xor(val.x, offset);
+        val.y += __shfl_xor(val.y, offset);
+        val.z += __shfl_xor(val.z, offset);
+    }
+    return val;
+}
 
 __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps){ //j->row, i->column
 	// <8,8,12>
@@ -193,18 +197,15 @@ __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU
 	j %= IMAGE_HEIGHT;
 
     dim3 seed(123456789+866*p+359*j+steps*1234, 362436069+i*2347+q*213+steps*5341,521288629+235*i*j+steps*9834);
-    seed.x = static_cast<unsigned int>(495081234 * xorshf96_gpu(&seed));
-    seed.y = static_cast<unsigned int>(671223424 * xorshf96_gpu(&seed));
-    seed.z = static_cast<unsigned int>(125437856 * xorshf96_gpu(&seed) );
 	float _i = i + (p + xorshf96_gpu(&seed)) / SAMPLE;
 	float _j = j + (q + xorshf96_gpu(&seed)) / SAMPLE;
 
 
 	//Initial Ray direction
 	float3 dir = make_float3(0,0,0);
-    dir += -cam.w * 1.207107;
-    float xw = (float) (1.5 * (_i - IMAGE_WIDTH / 2.0 + 0.5) / IMAGE_WIDTH);
-    float yw = (float) ((_j - IMAGE_HEIGHT / 2.0 + 0.5) / IMAGE_HEIGHT);
+    dir += -cam.w * 1.207107f;
+    float xw = (1.0f*IMAGE_WIDTH/IMAGE_HEIGHT * (i - IMAGE_WIDTH / 2.0f + 0.5f) / IMAGE_WIDTH);
+    float yw = ((j - IMAGE_HEIGHT / 2.0f + 0.5f) / IMAGE_HEIGHT);
     dir += cam.u * xw;
     dir += cam.v * yw;
     dir = normalize(dir);
@@ -213,42 +214,50 @@ __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU
     Ray_GPU ray(cam.pos, dir);
     float3 c = computeColor(ray, &seed, wor);
 
-    #pragma unroll
-    for(int mask = 32 / 2 ; mask > 0 ; mask >>= 1) {
-        c.x += __shfl_down(c.x, mask);
-        c.y += __shfl_down(c.y, mask);
-        c.z += __shfl_down(c.z, mask);
-    }
+    c = warpReduceSumTriple(c);
+    __shared__ float3 val[MAX_THREADS_IN_BLOCK/(SAMPLE*SAMPLE)];
+    val[threadIdx.z] = make_float3(1,0,0);
+    __syncthreads();
+    if(p==SAMPLE-1 && q==SAMPLE-1)
+        val[threadIdx.z] = c;
+    __syncthreads();
 
 	if(p==0 && q==0){
+	    c = c+val[threadIdx.z];
+        c = clamp(c/(SAMPLE*SAMPLE), 0, 1);
         int index = (i + j*IMAGE_WIDTH)*3;
-        bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * steps + 256 / (SAMPLE*SAMPLE) * c.x) / (steps + 1));
-        bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * steps + 256 / (SAMPLE*SAMPLE) * c.y) / (steps + 1));
-        bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * steps + 256 / (SAMPLE*SAMPLE) * c.z) / (steps + 1));
+        bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * steps + 256  * c.x) / (steps + 1));
+        bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * steps + 256 * c.y) / (steps + 1));
+        bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * steps + 256  * c.z) / (steps + 1));
 	}
 }
 
 __device__ float3 computeColor(Ray_GPU ray, dim3 *seed, World_GPU wor) {
     float3 c = AMBIENT_COLOR;
 
+    unsigned char sphere = wor.intersectRay(ray);
+    int loop_end = 0;
     for (unsigned char i = 0; i < MAX_LEVEL; i++){
-        unsigned char sphere = wor.intersectRay(ray);
-        if(sphere<wor.n) {
+        if(loop_end){
+            continue;
+        }
+        else if(sphere<wor.n) {
             c = c*wor.spheres[sphere].col;
-            if(wor.spheres[sphere].light) {
-                break;
+            if(!wor.spheres[sphere].light) {
+                float alpha=2*M_PI*xorshf96_gpu(seed),z=xorshf96_gpu(seed), sineTheta = sqrtf(1-z);
+                float3 w = ray.normal;
+                float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
+                float3 v = cross(w,u);
+                ray.dir = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z);
+                sphere = wor.intersectRay(ray);
+            }else {
+                loop_end = 1;
             }
-            float alpha=2*M_PI*xorshf96_gpu(seed),z=xorshf96_gpu(seed), sineTheta = sqrtf(1-z);
-            float3 w = ray.normal;
-            float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
-            float3 v = cross(w,u);
-            ray.dir = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z);
 //        if(kg>0)
 //            return finalColor*world->shade_ray(randomRay) *(kg * pow(dotProduct(rDirection, dDirection), n)) * dotProduct(w, dDirection); //Glossy
-
         }else{
             c = BACKGROUND;
-            break;
+            loop_end = true;
         }
     }
     return c;

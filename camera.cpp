@@ -23,6 +23,7 @@ position(_pos), target(_target), up(_up), fovy(_fovy), width(_width), height(_he
 	v.normalize();
 
 	bitmap  = new unsigned char[width * height * 3 * sizeof(unsigned char)]; //RGB
+	memset(bitmap, 0, width * height * 3 * sizeof(unsigned char));
 	focalHeight = 1.0; //Let's keep this fixed to 1.0
 	aspect = float(width)/float(height);
 	focalWidth = focalHeight * aspect; //Height * Aspect ratio

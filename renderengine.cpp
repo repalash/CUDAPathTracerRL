@@ -3,8 +3,9 @@
 #include "cudaHeaders.h"
 #include <cmath>
 #include <iostream>
+#include <ctime>
 
-#define SAMPLE 1
+#define SAMPLE 8
 
 const Color RenderEngine::trace(const float i, const float j)
 {
@@ -16,6 +17,7 @@ const Color RenderEngine::trace(const float i, const float j)
 bool RenderEngine::renderLoop()
 {
 	static int i = 0;
+	static clock_t cl = clock();
 #pragma omp parallel for schedule(dynamic, 5)
 	for(int j = 0; j<camera->getHeight(); j++)
 	{
@@ -34,7 +36,8 @@ bool RenderEngine::renderLoop()
 	{
 		i = 0;
 		camera->incSteps();
-		std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
+		printf("CPU Time: %fms\n", 1000 * (double)(clock() - cl) / CLOCKS_PER_SEC);
+//		std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
 		return false;
 	}
 	return false;

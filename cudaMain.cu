@@ -78,15 +78,27 @@ int init_resources(void)
     m->color = Color(1, 1, 0.23);  m->n = 20;
 
     Material *mPlane = new Material(world);
-    mPlane->color = Color(0.25, 0.25, 0.75); mPlane->kr = 0;
+    mPlane->color = Color(0.9,0.9,0.9); mPlane->kr = 0;
+    Material *mPlane2 = new Material(world);
+    mPlane2->color = Color(0.9,0.2,0.3); mPlane2->kr = 0;
+    Material *mPlane3 = new Material(world);
+    mPlane3->color = Color(0.1,0.3,0.9); mPlane3->kr = 0;
+    Material *mPlane4 = new Material(world);
+    mPlane4->color = Color(0.1,0.9,0.2); mPlane4->kr = 0;
 
-    Object *sphere5 = new Sphere(Vector3D(0, -4, 0), 0.9, m);
+    Object *sphere5 = new Sphere(Vector3D(0, -4, 0), 1.5, m);
     world->addObject(sphere5);
 
     Object *sphere6 = new Sphere(Vector3D(0, -2006, 0), 2000, mPlane);
     world->addObject(sphere6);
 
-    LightSource *light = new PointLightSource(world, Vector3D(0, 20, 10), Color(20, 20, 20));
+    world->addObject(new Sphere(Vector3D(2009, 0, 0), 2000, mPlane3));
+    world->addObject(new Sphere(Vector3D(-2009, 0, 0), 2000, mPlane2));
+    world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mPlane4));
+    world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane2));
+//    world->addObject(new Sphere(Vector3D(0, 2016, 0), 2000, mPlane));
+
+    LightSource *light = new PointLightSource(world, Vector3D(0, 16, 0), Color(3,3,3));
     world->addLight(light);
 
     engine = new RenderEngine_GPU(world, camera);
