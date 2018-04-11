@@ -2,11 +2,13 @@
 // Created by Palash on 11-04-2018.
 //
 
+#include <ctime>
 #include "renderengine_gpu.h"
 #include "cudaHeaders.h"
 #include "world_gpu.h"
 #include "camera_gpu.h"
 #include "ray_gpu.h"
+#include "curand_kernel.h"
 
 RenderEngine_GPU::RenderEngine_GPU(World *_world, Camera *_camera) : RenderEngine(_world, _camera) {
 
@@ -39,6 +41,7 @@ bool RenderEngine_GPU::renderLoop() {
     dim3 blockspergrid(cam.size.y * COLUMNS_IN_ONCE/threadsperblock.z);
 
     cudaEventRecord(begin_kernel);
+    srand(static_cast<unsigned int>(clock()));
     Main_Render_Kernel << < blockspergrid, threadsperblock >> >(i, bitmap_gpu, cam, wor, steps, rand());
     cudaEventRecord(stop_kernel);
     gpuErrchk(cudaPeekAtLastError());
@@ -160,7 +163,8 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
     unsigned int i = startI + j/cam.size.y;
     j %= cam.size.y;
 
-    unsigned int seed = 12345678 + p*11234 + q*23145 + i*13456 + j*14567 + steps*5678 + mrand*49574;
+    unsigned int seed = ((blockIdx.x * blockDim.x) + threadIdx.x + cam.size.y * ((blockIdx.y * blockDim.y) + threadIdx.y) + cam.size.x * threadIdx.z + 2347*mrand)&RAND_MAX;
+    Random_GPU(seed);
     float _i = i + (p + Random_GPU(seed)) / SAMPLE;
     float _j = j + (q + Random_GPU(seed)) / SAMPLE;
 
