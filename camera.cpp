@@ -27,6 +27,7 @@ position(_pos), target(_target), up(_up), fovy(_fovy), width(_width), height(_he
 	aspect = float(width)/float(height);
 	focalWidth = focalHeight * aspect; //Height * Aspect ratio
 	focalDistance = focalHeight/(2.0f * tan(fovy * M_PI/(180.0f * 2.0f))); //More the fovy, close is focal plane
+    printf("%f %f %f %f %f %f %f \n", aspect, u.X(), u.Y(), u.Z(), v.X(), v.Y(), v.Z());
 }
 
 Camera::~Camera()

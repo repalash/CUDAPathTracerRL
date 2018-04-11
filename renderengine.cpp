@@ -4,13 +4,13 @@
 #include <cmath>
 #include <iostream>
 
-#define SAMPLE 8
+#define SAMPLE 1
 
 const Color RenderEngine::trace(const float i, const float j)
 {
 	Vector3D ray_dir = camera->get_ray_direction(i, j);
 	Ray ray(camera->get_position(), ray_dir);
-	return Color(ray_dir.X(), ray_dir.Y(), ray_dir.Z());//world->shade_ray(ray);
+	return world->shade_ray(ray);
 }
 
 bool RenderEngine::renderLoop()

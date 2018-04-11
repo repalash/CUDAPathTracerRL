@@ -83,7 +83,7 @@ int init_resources(void)
     Object *sphere5 = new Sphere(Vector3D(0, -4, 0), 0.9, m);
     world->addObject(sphere5);
 
-    Object *sphere6 = new Sphere(Vector3D(0, -1006, 0), 1000, mPlane);
+    Object *sphere6 = new Sphere(Vector3D(0, -2006, 0), 2000, mPlane);
     world->addObject(sphere6);
 
     LightSource *light = new PointLightSource(world, Vector3D(0, 20, 10), Color(20, 20, 20));

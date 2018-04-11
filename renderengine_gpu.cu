@@ -43,8 +43,11 @@ struct Ray_GPU {
     float3 orig; // ray origin
     float3 dir;  // ray direction
     float3 normal;
-    unsigned char level;
-    __device__ Ray_GPU(float3 o_, float3 d_) : orig(o_), dir(d_) {}
+    unsigned char level = 0;
+    __device__ Ray_GPU(float3 o, float3 d) {
+        orig = o;
+        dir = d;
+    }
 };
 struct Sphere_GPU {
     float rad;            // radius
@@ -62,7 +65,8 @@ struct Sphere_GPU {
         float disc = b*b - dot(op, op) + rad*rad;
         if (disc<0) return 0;
         else disc = sqrtf(disc);
-        return (t = b - disc)>EPSILON ? t : ((t = b + disc)>EPSILON ? t : 0);
+        t = (t = b - disc)>EPSILON ? t : ((t = b + disc)>EPSILON ? t : 0);
+        return t;
     }
 };
 
@@ -99,7 +103,10 @@ struct World_GPU{
                 sph = i;
             }
         }
-        if(sph<n) ray.normal = normalize(ray.orig + t*ray.dir - spheres[sph].pos);
+        if(sph<n) {
+            float3 er = ray.orig + t * ray.dir - spheres[sph].pos;
+            ray.normal = normalize(ray.orig + t * ray.dir - spheres[sph].pos);
+        }
         return sph;
     }
 };
@@ -150,24 +157,9 @@ bool RenderEngine_GPU::renderLoop() {
     float kernelTime, totalTime; // Initialize elapsedTime;
     cudaEventElapsedTime(&kernelTime, begin_kernel, stop_kernel);
     cudaEventElapsedTime(&totalTime, begin, stop);
-    printf("GPU Time: %fms, %fms\n", kernelTime, totalTime);
 
     //Free variables
     cudaFree(bitmap_gpu);
-
-
-//    for(int j = 0; j<camera->getHeight(); j++)
-//    {
-//        Color color(0);
-//        for(int p =0; p<SAMPLE; p++){
-//            for(int q=0; q<SAMPLE; q++){
-//                color = color + trace((const float) (i + (p + xorshf96()) / SAMPLE), (const float) (j + (q + xorshf96()) / SAMPLE));
-//            }
-//        }
-//        color = color / (SAMPLE*SAMPLE);
-//        color.clamp();
-//        camera->drawPixel(i, j, color);
-//    }
 
     if( (i+=COLUMNS_IN_ONCE) == camera->getWidth())
     {
@@ -202,12 +194,12 @@ __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU
 
 	//Initial Ray direction
 	float3 dir = make_float3(0,0,0);
-    dir += -cam.w ;
-    float xw = (float) ((1.0f * IMAGE_WIDTH/IMAGE_HEIGHT) * (_i - IMAGE_WIDTH / 2.0 + 0.5) / IMAGE_WIDTH);
-    float yw = (float) ((_j - IMAGE_HEIGHT / 2.0 + 0.5) / IMAGE_HEIGHT);
+    dir += -cam.w * 1.207107;
+    float xw = (float) (1.5 * (i - IMAGE_WIDTH / 2.0 + 0.5) / IMAGE_WIDTH);
+    float yw = (float) ((j - IMAGE_HEIGHT / 2.0 + 0.5) / IMAGE_HEIGHT);
     dir += cam.u * xw;
     dir += cam.v * yw;
-    normalize(dir);
+    dir = normalize(dir);
 
     float3 c;// = computeColor(ray, &seed);
 
@@ -221,6 +213,7 @@ __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU
         }else{
             c = BACKGROUND;
         }
+//        c = make_float3(sphere/wor.n,0,0);
 //        float alpha=2*M_PI*xorshf96_gpu(&seed),z=xorshf96_gpu(&seed), sineTheta = sqrtf(1-z);
         //generate basis
 //        float3 w = ray.normal;
@@ -232,12 +225,7 @@ __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU
 //            return finalColor*world->shade_ray(randomRay) *(kg * pow(dotProduct(rDirection, dDirection), n)) * dotProduct(w, dDirection); //Glossy
 //        else
 //            return finalColor*world->shade_ray(randomRay);
-
-
-
     }
-
-
 
 	//TODO: save color to shared memory
 
