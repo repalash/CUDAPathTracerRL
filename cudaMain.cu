@@ -74,9 +74,10 @@ int init_resources(void)
     world->setAmbient(Color(1));
     world->setBackground(Color(0, 0, 0));
 
-    Material *m = new Material(world); //glossy
-    m->color = Color(1, 1, 0.23);  m->n = 20;
-
+    Material *glossy = new Material(world); //glossy
+    glossy->color = Color(1, 1, 0.23);  glossy->n = 20;
+    Material *mirror = new Material(world); //mirror
+    mirror->color = Color(0.8, 1, 0.9);  mirror->kr = 0.8;
     Material *mPlane = new Material(world);
     mPlane->color = Color(0.9,0.9,0.9); mPlane->kr = 0;
     Material *mPlane2 = new Material(world);
@@ -88,16 +89,15 @@ int init_resources(void)
     Material *glass = new Material(world); //dielectric
     glass->color = Color(1, 0.95, 0.95); glass->eta = 1.75; glass->kt=1;
 
-    Object *sphere5 = new Sphere(Vector3D(2, -3, 0), 2, glass);
-    world->addObject(sphere5);
+    world->addObject(new Sphere(Vector3D(2, -3, 0), 2, glass));
+    world->addObject(new Sphere(Vector3D(0, 0, -3), 3, glossy));
 
-    Object *sphere6 = new Sphere(Vector3D(0, -2006, 0), 2000, mPlane);
-    world->addObject(sphere6);
-
-    world->addObject(new Sphere(Vector3D(2009, 0, 0), 2000, mPlane3));
-    world->addObject(new Sphere(Vector3D(-2009, 0, 0), 2000, mPlane2));
-    world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mPlane4));
-    world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane2));
+    world->addObject(new Sphere(Vector3D(0, -2006, 0), 2000, mPlane)); //down
+    world->addObject(new Sphere(Vector3D(0, 2010, 0), 2000, mPlane)); //up
+    world->addObject(new Sphere(Vector3D(2009, 0, 0), 2000, mPlane3)); //right
+    world->addObject(new Sphere(Vector3D(-2009, 0, 0), 2000, mPlane2)); //left
+    world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mirror)); //front
+    world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane4)); //back
 //    world->addObject(new Sphere(Vector3D(0, 2016, 0), 2000, mPlane));
 
     LightSource *light = new PointLightSource(world, Vector3D(0, 16, 0), Color(4,4,4));

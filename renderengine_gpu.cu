@@ -85,13 +85,6 @@ __device__ float3 computeColor(Ray_GPU ray, unsigned int &seed, World_GPU wor) {
                 //light
                 loop_end = 1;
                 continue;
-            }else if(sp_mat == DIFFUSE){
-                //diffuse
-                float alpha=2*M_PI* Random_GPU(seed),z= Random_GPU(seed), sineTheta = sqrtf(1-z);
-                float3 w = ray.normal;
-                float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
-                float3 v = cross(w,u);
-                ray.dir = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z);
             }else if(sp_mat == DIELECTRIC){
                 //dielectric
                 float eta = wor.spheres[sphere].param;
@@ -116,10 +109,37 @@ __device__ float3 computeColor(Ray_GPU ray, unsigned int &seed, World_GPU wor) {
                         ray.dir = refr_dir;
                     }
                 }
+            }else if(sp_mat == GLOSSY){
+                //glossy
+                float cosTheta = dot(ray.dir, ray.normal);
+                float n = wor.spheres[sphere].param;
+
+                float phi=2*M_PI*Random_GPU(seed), cosAlpha=pow(Random_GPU(seed), 1.f/(n+1)), sineAlpha = sqrt(1-cosAlpha*cosAlpha);
+                float rotAngle = 2*(acos(-cosTheta) + acos(cosAlpha) - M_PI/2);
+
+                float3 w = normalize(ray.dir - 2 * ray.normal * cosTheta);
+                float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
+                float3 v = cross(w,u);
+
+                float3 dDirection = u*cos(phi)*sineAlpha + v*sin(phi)*sineAlpha + w*cosAlpha;
+
+                if(dot(dDirection,ray.normal)<0) {
+                    float3 k = normalize(cross(w, ray.normal));
+                    dDirection = cos(rotAngle) * dDirection + sin(rotAngle) * cross(k, dDirection);
+                }
+                ray.dir = dDirection;
+            }else if(sp_mat == REFLECTIVE && Random_GPU(seed) < wor.spheres[sphere].param){
+                float cosTheta = dot(ray.dir, ray.normal);
+                ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
+            }else {
+                //diffuse
+                float alpha=2*M_PI* Random_GPU(seed),z= Random_GPU(seed), sineTheta = sqrtf(1-z);
+                float3 w = ray.normal;
+                float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
+                float3 v = cross(w,u);
+                ray.dir = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z);
             }
             sphere = wor.intersectRay(ray);
-//        if(kg>0)
-//            return finalColor*world->shade_ray(randomRay) *(kg * pow(dotProduct(rDirection, dDirection), n)) * dotProduct(w, dDirection); //Glossy
         }else{
             c = BACKGROUND;
             loop_end = true;

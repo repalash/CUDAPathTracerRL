@@ -11,7 +11,7 @@
 #include "cuda_utils.h"
 #include "ray_gpu.h"
 
-enum SPHERE_MATERIAL { DIFFUSE, LIGHT, DIELECTRIC };
+enum SPHERE_MATERIAL { DIFFUSE, LIGHT, DIELECTRIC, GLOSSY, REFLECTIVE };
 
 struct Sphere_GPU {
     float rad;
@@ -31,6 +31,14 @@ struct Sphere_GPU {
         if(s->getMaterial()->kt>0){
             material = DIELECTRIC;
             param = static_cast<float>(s->getMaterial()->eta);
+        }
+        if(s->getMaterial()->n>0){
+            material = GLOSSY;
+            param = static_cast<float>(s->getMaterial()->n);
+        }
+        if(s->getMaterial()->kr>0){
+            material = REFLECTIVE;
+            param = static_cast<float>(s->getMaterial()->kr);
         }
     }
     __device__ float intersect(const Ray_GPU &r) const {
