@@ -43,6 +43,7 @@ inline int __syncthreads_count(int predicate) {return predicate;};
 inline int __syncthreads_and(int predicate) {return predicate;};
 inline int __syncthreads_or(int predicate) {return predicate;};
 template<class T> inline T __clz(const T val) { return val; }
+template<class T> inline T __shfl_down(const T val, int mask) { return val; }
 template<class T> inline T __ldg(const T* address){return *address;};
 // CUDA TYPES
 typedef unsigned short uchar;

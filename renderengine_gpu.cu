@@ -6,8 +6,8 @@
 #include "cudaHeaders.h"
 
 #define SAMPLE 8
-#define MAX_THREADS_IN_BLOCK 512
-#define COLUMNS_IN_ONCE 10
+#define MAX_THREADS_IN_BLOCK 768
+#define COLUMNS_IN_ONCE 360
 #define IMAGE_HEIGHT 240
 #define IMAGE_WIDTH 360
 #define AMBIENT_COLOR make_float3(1,1,1)
@@ -43,7 +43,7 @@ struct Ray_GPU {
     float3 orig; // ray origin
     float3 dir;  // ray direction
     float3 normal;
-    unsigned char level = 0;
+//    unsigned char level = 0;
     __device__ Ray_GPU(float3 o, float3 d) {
         orig = o;
         dir = d;
@@ -51,12 +51,16 @@ struct Ray_GPU {
 };
 struct Sphere_GPU {
     float rad;            // radius
-    float3 pos, emi, col; // position, emission, colour
+    float3 pos, col; // position, emission, colour
+    char light;
     __host__ Sphere_GPU(){}
     __host__ Sphere_GPU(Sphere *s) {
         rad = static_cast<float>(s->getRadius());
         Vector3D_To_float3(s->getPosition(), &pos);
         Color_To_float3(s->getMaterial()->color, &col);
+        if((light = s->isLightSource())){
+            Color_To_float3(s->getLightSource()->getIntensity(), &col);
+        }
     }
     __device__ float intersect(const Ray_GPU &r) const {
         float3 op = pos - r.orig;
@@ -69,7 +73,6 @@ struct Sphere_GPU {
         return t;
     }
 };
-
 
 struct Camera_GPU{
     float3 u;
@@ -104,8 +107,9 @@ struct World_GPU{
             }
         }
         if(sph<n) {
-            float3 er = ray.orig + t * ray.dir - spheres[sph].pos;
-            ray.normal = normalize(ray.orig + t * ray.dir - spheres[sph].pos);
+            float3 er = ray.orig + t * ray.dir;
+            ray.orig = er;
+            ray.normal = normalize(er - spheres[sph].pos);
         }
         return sph;
     }
@@ -158,6 +162,8 @@ bool RenderEngine_GPU::renderLoop() {
     cudaEventElapsedTime(&kernelTime, begin_kernel, stop_kernel);
     cudaEventElapsedTime(&totalTime, begin, stop);
 
+    printf("Time: %fms, %fms\n", kernelTime, totalTime);
+
     //Free variables
     cudaFree(bitmap_gpu);
 
@@ -174,7 +180,7 @@ bool RenderEngine_GPU::renderLoop() {
 
 
 
-__device__ float3 computeColor(Ray_GPU i, dim3 *j);
+__device__ float3 computeColor(Ray_GPU i, dim3 *j, World_GPU wor);
 
 __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps){ //j->row, i->column
 	// <8,8,12>
@@ -186,8 +192,10 @@ __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU
 	unsigned int i = startI + j/IMAGE_HEIGHT;
 	j %= IMAGE_HEIGHT;
 
-    dim3 seed(123456789+866*p+359*j, 362436069+q*213+steps*5341,521288629+235*i*j);
-
+    dim3 seed(123456789+866*p+359*j+steps*1234, 362436069+i*2347+q*213+steps*5341,521288629+235*i*j+steps*9834);
+    seed.x = static_cast<unsigned int>(495081234 * xorshf96_gpu(&seed));
+    seed.y = static_cast<unsigned int>(671223424 * xorshf96_gpu(&seed));
+    seed.z = static_cast<unsigned int>(125437856 * xorshf96_gpu(&seed) );
 	float _i = i + (p + xorshf96_gpu(&seed)) / SAMPLE;
 	float _j = j + (q + xorshf96_gpu(&seed)) / SAMPLE;
 
@@ -195,59 +203,53 @@ __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU
 	//Initial Ray direction
 	float3 dir = make_float3(0,0,0);
     dir += -cam.w * 1.207107;
-    float xw = (float) (1.5 * (i - IMAGE_WIDTH / 2.0 + 0.5) / IMAGE_WIDTH);
-    float yw = (float) ((j - IMAGE_HEIGHT / 2.0 + 0.5) / IMAGE_HEIGHT);
+    float xw = (float) (1.5 * (_i - IMAGE_WIDTH / 2.0 + 0.5) / IMAGE_WIDTH);
+    float yw = (float) ((_j - IMAGE_HEIGHT / 2.0 + 0.5) / IMAGE_HEIGHT);
     dir += cam.u * xw;
     dir += cam.v * yw;
     dir = normalize(dir);
 
-    float3 c;// = computeColor(ray, &seed);
-
     //Create ray
     Ray_GPU ray(cam.pos, dir);
-    if(ray.level > MAX_LEVEL) c = AMBIENT_COLOR;
-    else {
-        unsigned char sphere = wor.intersectRay(ray);
-        if(sphere<wor.n) {
-            c = wor.spheres[sphere].col;
-        }else{
-            c = BACKGROUND;
-        }
-//        c = make_float3(sphere/wor.n,0,0);
-//        float alpha=2*M_PI*xorshf96_gpu(&seed),z=xorshf96_gpu(&seed), sineTheta = sqrtf(1-z);
-        //generate basis
-//        float3 w = ray.normal;
-//        float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
-//        float3 v = cross(w,u);
-//        float3 dDirection = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z) ;
-//        Ray randomRay = Ray(incident.getPosition(), dDirection, incident.getLevel() + 1);  //Ideal reflection
-//        if(kg>0)
-//            return finalColor*world->shade_ray(randomRay) *(kg * pow(dotProduct(rDirection, dDirection), n)) * dotProduct(w, dDirection); //Glossy
-//        else
-//            return finalColor*world->shade_ray(randomRay);
+    float3 c = computeColor(ray, &seed, wor);
+
+    #pragma unroll
+    for(int mask = 32 / 2 ; mask > 0 ; mask >>= 1) {
+        c.x += __shfl_down(c.x, mask);
+        c.y += __shfl_down(c.y, mask);
+        c.z += __shfl_down(c.z, mask);
     }
 
-	//TODO: save color to shared memory
-
 	if(p==0 && q==0){
-//		Color finalColor = Color(0); //TODO: accumulate
-//		finalColor = finalColor / (SAMPLE*SAMPLE);
         int index = (i + j*IMAGE_WIDTH)*3;
-        bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * steps + 255 * c.x) / (steps + 1));
-        bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * steps + 255 * c.y) / (steps + 1));
-        bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * steps + 255 * c.z) / (steps + 1));
+        bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * steps + 256 / (SAMPLE*SAMPLE) * c.x) / (steps + 1));
+        bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * steps + 256 / (SAMPLE*SAMPLE) * c.y) / (steps + 1));
+        bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * steps + 256 / (SAMPLE*SAMPLE) * c.z) / (steps + 1));
 	}
 }
 
-__device__ float3 computeColor(Ray_GPU i, dim3 *seed) {
+__device__ float3 computeColor(Ray_GPU ray, dim3 *seed, World_GPU wor) {
+    float3 c = AMBIENT_COLOR;
 
-    float3 c;
+    for (unsigned char i = 0; i < MAX_LEVEL; i++){
+        unsigned char sphere = wor.intersectRay(ray);
+        if(sphere<wor.n) {
+            c = c*wor.spheres[sphere].col;
+            if(wor.spheres[sphere].light) {
+                break;
+            }
+            float alpha=2*M_PI*xorshf96_gpu(seed),z=xorshf96_gpu(seed), sineTheta = sqrtf(1-z);
+            float3 w = ray.normal;
+            float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
+            float3 v = cross(w,u);
+            ray.dir = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z);
+//        if(kg>0)
+//            return finalColor*world->shade_ray(randomRay) *(kg * pow(dotProduct(rDirection, dDirection), n)) * dotProduct(w, dDirection); //Glossy
 
-
-
-    c.x = xorshf96_gpu(seed);
-    c.y = xorshf96_gpu(seed);
-    c.z = xorshf96_gpu(seed);
-
+        }else{
+            c = BACKGROUND;
+            break;
+        }
+    }
     return c;
 }
