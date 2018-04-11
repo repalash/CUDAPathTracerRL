@@ -27,6 +27,9 @@ public:
 	void setLightSource(LightSource *ls){ lightSource = ls; }
 	bool isLightSource() const { return lightSource!=nullptr; };
 	const LightSource* getLightSource() const { return lightSource; };
+	Material *getMaterial() const {
+		return material;
+	}
 };
 
 #endif

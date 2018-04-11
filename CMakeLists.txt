@@ -21,13 +21,14 @@ add_library(cuda_base
         quadric.cpp quadric.h
         ray.cpp ray.h
         renderengine.cpp renderengine.h
+        renderengine_gpu.cu renderengine_gpu.h
         shader_utils.cpp shader_utils.h
         sphere.cpp sphere.h
         structs.h
         triangle.cpp triangle.h
         vector3D.cpp vector3D.h
         world.cpp world.h
-
+        cutil_math.h
         dummy.cpp cudaHeaders.h)
 
 target_compile_features(cuda_base PUBLIC cxx_std_11)

@@ -38,4 +38,12 @@ bool Sphere::intersect(Ray& r) const
 	return false;
 }
 
+const Vector3D &Sphere::getPosition() const {
+	return position;
+}
+
+double Sphere::getRadius() const {
+	return radius;
+}
+
 

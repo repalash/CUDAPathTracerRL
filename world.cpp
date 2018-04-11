@@ -27,3 +27,7 @@ void World::addLight(LightSource* ls) {
 	sphere->setLightSource(ls);
 	addObject(sphere);
 }
+
+const vector<Object *> &World::getObjectList() const {
+    return objectList;
+}

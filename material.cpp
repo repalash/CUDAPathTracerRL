@@ -7,7 +7,7 @@
 #include <random>
 
 unsigned int x=123456789, y=362436069, z=521288629;
-__host__ __device__ float xorshf96() {          //3.6 times better performance than rand()
+float xorshf96() {          //3.6 times better performance than rand()
 //	return 1.f*rand()/RAND_MAX;
 	unsigned int t;
 	x ^= x << 16;
@@ -25,7 +25,7 @@ __host__ __device__ Color Material::shade(const Ray& incident, const bool isSoli
 	if(!incident.didHit()) return world->getBackground();
 
 	if(incident.intersected()->isLightSource() &&
-	   xorshf96()<incident.intersected()->getLightSource()->getIntensity().maxComponent())  //randomly determine to emit light
+	   1<incident.intersected()->getLightSource()->getIntensity().maxComponent())  //randomly determine to emit light
 		return incident.intersected()->getLightSource()->getIntensity();
 
 	Color finalColor(color);
@@ -59,6 +59,7 @@ __host__ __device__ Color Material::shade(const Ray& incident, const bool isSoli
 		}
 	}else if(n>0)
 	{
+		//glossy
 		double phi=2*M_PI*xorshf96(),
 				cosAlpha=pow(xorshf96(), 1.f/(n+1)), sineAlpha = sqrt(1-cosAlpha*cosAlpha);
 		double rotAngle = 2*(acos(-cosTheta) + acos(cosAlpha) - M_PI/2);

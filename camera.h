@@ -36,5 +36,11 @@ public:
 	int getSteps() const {
 		return steps;
 	}
+
+	const Vector3D &getU() const;
+
+	const Vector3D &getV() const;
+
+	const Vector3D &getW() const;
 };
 #endif

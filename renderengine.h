@@ -7,14 +7,14 @@
 
 class RenderEngine
 {
-private:
+protected:
 	World *world;
 	Camera *camera;
 
 public:
 	RenderEngine(World *_world, Camera *_camera):
 		world(_world), camera(_camera) {}
-	bool renderLoop();
-	const Color trace(const float i, const float j);
+	virtual bool renderLoop();
+	virtual const Color trace(const float i, const float j);
 };
 #endif

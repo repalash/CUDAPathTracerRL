@@ -10,7 +10,7 @@
 #include <device_launch_parameters.h>
 #include <cstdio>
 #include <cstdlib>
-
+#include "cutil_math.h"
 //int cudaMain(int argc, char **argv);
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)

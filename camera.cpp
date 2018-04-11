@@ -55,3 +55,15 @@ void Camera::drawPixel(int i, int j, Color c)
 	bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * steps + 255 * c.g) / (steps + 1));
 	bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * steps + 255 * c.b) / (steps + 1));
 }
+
+const Vector3D &Camera::getU() const {
+	return u;
+}
+
+const Vector3D &Camera::getV() const {
+	return v;
+}
+
+const Vector3D &Camera::getW() const {
+	return w;
+}

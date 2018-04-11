@@ -22,5 +22,9 @@ public:
 	}
 	
 	virtual bool intersect(Ray& r) const;
+
+	const Vector3D &getPosition() const;
+
+	double getRadius() const;
 };
 #endif

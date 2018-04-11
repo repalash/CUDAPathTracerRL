@@ -34,6 +34,8 @@ public:
 	}
 	float firstIntersection(Ray& ray);
 	Color shade_ray(Ray& ray);
+
+	const std::vector<Object *> &getObjectList() const;
 };
 
 #endif
