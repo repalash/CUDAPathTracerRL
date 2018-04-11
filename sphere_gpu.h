@@ -11,17 +11,26 @@
 #include "cuda_utils.h"
 #include "ray_gpu.h"
 
+enum SPHERE_MATERIAL { DIFFUSE, LIGHT, DIELECTRIC };
+
 struct Sphere_GPU {
     float rad;
     float3 pos, col;
-    int light;
+    float param;
+    SPHERE_MATERIAL material;
     __host__ Sphere_GPU(){}
     __host__ Sphere_GPU(Sphere *s) {
         rad = static_cast<float>(s->getRadius());
         Vector3D_To_float3(s->getPosition(), &pos);
         Color_To_float3(s->getMaterial()->color, &col);
-        if((light = s->isLightSource()?1:0)){
+        material = DIFFUSE;
+        if(s->isLightSource()){
+            material = LIGHT;
             Color_To_float3(s->getLightSource()->getIntensity(), &col);
+        }
+        if(s->getMaterial()->kt>0){
+            material = DIELECTRIC;
+            param = static_cast<float>(s->getMaterial()->eta);
         }
     }
     __device__ float intersect(const Ray_GPU &r) const {

@@ -2,6 +2,7 @@
 #define _POINTLIGHTSOURCE_H_
 
 #include "lightsource.h"
+#include "world.h"
 
 class PointLightSource : public LightSource
 {

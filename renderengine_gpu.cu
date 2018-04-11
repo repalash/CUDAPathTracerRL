@@ -80,16 +80,44 @@ __device__ float3 computeColor(Ray_GPU ray, unsigned int &seed, World_GPU wor) {
         }
         else if(sphere<wor.n) {
             c = c*wor.spheres[sphere].col;
-            if(!wor.spheres[sphere].light) {
+            SPHERE_MATERIAL sp_mat = wor.spheres[sphere].material;
+            if(sp_mat == LIGHT){
+                //light
+                loop_end = 1;
+                continue;
+            }else if(sp_mat == DIFFUSE){
+                //diffuse
                 float alpha=2*M_PI* Random_GPU(seed),z= Random_GPU(seed), sineTheta = sqrtf(1-z);
                 float3 w = ray.normal;
                 float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
                 float3 v = cross(w,u);
                 ray.dir = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z);
-                sphere = wor.intersectRay(ray);
-            }else {
-                loop_end = 1;
+            }else if(sp_mat == DIELECTRIC){
+                //dielectric
+                float eta = wor.spheres[sphere].param;
+                float cosTheta = dot(ray.dir, ray.normal);
+                bool isInside = cosTheta > 0;
+                float nc=1, nnt=isInside?eta/nc:nc/eta;
+                float cos2t = 1-nnt*nnt*(1-cosTheta*cosTheta);
+                if (cos2t<0){ //TIR
+                    ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
+                }else{
+                    cosTheta = -fabs(cosTheta);
+                    float3 refr_dir = normalize(ray.dir * nnt - ray.normal*((isInside?-1:1)*(cosTheta*nnt+sqrt(cos2t))));
+
+                    float a=eta-nc, b=eta+nc, R0=a*a/(b*b), c1 = 1-(isInside?dot(refr_dir, ray.normal):-cosTheta);
+                    float Re=R0+(1-R0)*c1*c1*c1*c1*c1,Tr=1-Re,P=.25f+.5f*Re,RP=Re/P,TP=Tr/(1-P);
+                    if (Random_GPU(seed) < P) {
+                        c = c * RP;
+                        ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
+                    }
+                    else{
+                        c = c * TP;
+                        ray.dir = refr_dir;
+                    }
+                }
             }
+            sphere = wor.intersectRay(ray);
 //        if(kg>0)
 //            return finalColor*world->shade_ray(randomRay) *(kg * pow(dotProduct(rDirection, dDirection), n)) * dotProduct(w, dDirection); //Glossy
         }else{

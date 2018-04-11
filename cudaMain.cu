@@ -85,8 +85,10 @@ int init_resources(void)
     mPlane3->color = Color(0.1,0.3,0.9); mPlane3->kr = 0;
     Material *mPlane4 = new Material(world);
     mPlane4->color = Color(0.1,0.9,0.2); mPlane4->kr = 0;
+    Material *glass = new Material(world); //dielectric
+    glass->color = Color(1, 0.95, 0.95); glass->eta = 1.75; glass->kt=1;
 
-    Object *sphere5 = new Sphere(Vector3D(0, -4, 0), 1.5, m);
+    Object *sphere5 = new Sphere(Vector3D(2, -3, 0), 2, glass);
     world->addObject(sphere5);
 
     Object *sphere6 = new Sphere(Vector3D(0, -2006, 0), 2000, mPlane);
@@ -98,7 +100,7 @@ int init_resources(void)
     world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane2));
 //    world->addObject(new Sphere(Vector3D(0, 2016, 0), 2000, mPlane));
 
-    LightSource *light = new PointLightSource(world, Vector3D(0, 16, 0), Color(3,3,3));
+    LightSource *light = new PointLightSource(world, Vector3D(0, 16, 0), Color(4,4,4));
     world->addLight(light);
 
     engine = new RenderEngine_GPU(world, camera);
