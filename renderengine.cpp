@@ -31,12 +31,12 @@ bool RenderEngine::renderLoop()
 		color.clamp();
 		camera->drawPixel(i, j, color);
 	}
+    printf("CPU Time: %fms, steps: %d\n", 1000 * (double)(clock() - cl) / CLOCKS_PER_SEC, i);
 
 	if(++i == camera->getWidth())
 	{
 		i = 0;
 		camera->incSteps();
-		printf("CPU Time: %fms\n", 1000 * (double)(clock() - cl) / CLOCKS_PER_SEC);
 //		std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
 		return false;
 	}

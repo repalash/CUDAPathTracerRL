@@ -57,8 +57,6 @@ bool RenderEngine_GPU::renderLoop() {
     cudaEventElapsedTime(&kernelTime, begin_kernel, stop_kernel);
     cudaEventElapsedTime(&totalTime, begin, stop);
 
-    printf("Time: %fms, %fms\n", kernelTime, totalTime);
-
     //Free variables
     cudaFree(bitmap_gpu);
 
@@ -66,6 +64,7 @@ bool RenderEngine_GPU::renderLoop() {
     {
         i = 0;
         steps++;
+        printf("GPU Time: %fms, %fms, steps: %d\n", kernelTime, totalTime, steps);
         camera->incSteps();
 //        std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
         return false;
@@ -168,7 +167,6 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
     float _i = i + (p + Random_GPU(seed)) / SAMPLE;
     float _j = j + (q + Random_GPU(seed)) / SAMPLE;
 
-
     //Initial Ray direction
     float3 dir = make_float3(0,0,0);
     dir += -cam.w * 1.207107f;
@@ -194,8 +192,9 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
         c = c+val[threadIdx.z];
         c = clamp(c/(SAMPLE*SAMPLE), 0, 1);
         int index = (i + j*cam.size.x)*3;
-        bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * steps + 256  * c.x) / (steps + 1));
-        bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * steps + 256 * c.y) / (steps + 1));
-        bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * steps + 256  * c.z) / (steps + 1));
+        float f = 1.0f / (steps+1);
+        bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * (f * steps) + 255 * c.x * f));
+        bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * (f * steps) + 255 * c.y * f));
+        bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * (f * steps) + 255 * c.z * f));
     }
 }

@@ -1,5 +1,6 @@
 #include <iostream>
 #include "world.h"
+#include "pointlightsource.h"
 
 using namespace std;
 
@@ -21,9 +22,9 @@ Color World::shade_ray(Ray& ray)
 	return background;
 }
 
-void World::addLight(LightSource* ls) {
+void World::addLight(PointLightSource *ls, float radius) {
 	Material *m = new Material(this); m->ka = 1; m->color = Color(ls->getIntensity());
-	Sphere *sphere = new Sphere(ls->getPosition(), 8, m);
+	Sphere *sphere = new Sphere(ls->getPosition(), radius, m);
 	sphere->setLightSource(ls);
 	addObject(sphere);
 }

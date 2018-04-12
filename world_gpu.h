@@ -9,7 +9,7 @@
 #include "sphere_gpu.h"
 
 struct World_GPU{
-    Sphere_GPU spheres[10];
+    Sphere_GPU spheres[20];
     unsigned char n = 0;
     __host__ World_GPU(World *wor){
         for(int i=0; i<wor->getObjectList().size(); i++){

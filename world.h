@@ -9,6 +9,7 @@
 #include "color.h"
 #include "sphere.h"
 #include "ray.h"
+#include "pointlightsource.h"
 
 class World
 {
@@ -27,7 +28,7 @@ public:
 	void setAmbient(const Color& amb) {ambient = amb;}
 	Color getAmbient() {return ambient;}
 
-	void addLight(LightSource* ls);
+	void addLight(PointLightSource *ls, float radius);
 	void addObject(Object *obj)
 	{
 		objectList.push_back(obj);
