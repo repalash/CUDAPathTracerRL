@@ -161,6 +161,7 @@ void free_resources()
     glDeleteVertexArrays(1, &vao);
     glDeleteProgram(program);
     glDeleteTextures(1, &texImage);
+    delete(engine);
 }
 
 void onReshape(int width, int height) { //TODO: port for GLFW

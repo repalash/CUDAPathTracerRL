@@ -12,13 +12,21 @@
 
 class RenderEngine_GPU: public RenderEngine{
 
-public:
+    int random_texture[SAMPLE * SAMPLE];
+    int *random_texture_device;
+    unsigned char *bitmap_gpu;
+    Camera_GPU cam;
+    World_GPU wor;
+
+    public:
     RenderEngine_GPU(World *_world, Camera *_camera);
     bool renderLoop();
+
+    virtual ~RenderEngine_GPU();
 };
 
 __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps,
-                                   unsigned int mrand);
+                                   int* rand_tex);
 __device__ float3 computeColor(Ray_GPU i, unsigned int &j, World_GPU wor);
 
 

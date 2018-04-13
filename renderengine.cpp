@@ -19,7 +19,7 @@ bool RenderEngine::renderLoop()
 	static int i = 0;
 	static clock_t cl = clock();
 #pragma omp parallel for schedule(dynamic, 5)
-	for(int j = 0; j<camera->getHeight(); j++)
+	for(unsigned int j = 0; j<camera->getHeight(); j++)
 	{
 		Color color(0);
 		for(int p =0; p<SAMPLE; p++){

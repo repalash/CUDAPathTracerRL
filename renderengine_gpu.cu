@@ -10,8 +10,13 @@
 #include "ray_gpu.h"
 #include "curand_kernel.h"
 
-RenderEngine_GPU::RenderEngine_GPU(World *_world, Camera *_camera) : RenderEngine(_world, _camera) {
+RenderEngine_GPU::RenderEngine_GPU(World *_world, Camera *_camera) : RenderEngine(_world, _camera), wor(_world), cam(_camera) {
+    //init vars
+    cudaMalloc(reinterpret_cast<void**>(&bitmap_gpu), cam.size.y * cam.size.x * 3 * sizeof(unsigned char));
+    cudaMalloc(reinterpret_cast<void**>(&random_texture_device), SAMPLE * SAMPLE * sizeof(int));
 
+    //DO copy all variables
+    cudaMemcpy(bitmap_gpu, camera->getBitmap(), cam.size.y * cam.size.x * 3 * sizeof(unsigned char), cudaMemcpyHostToDevice);
 }
 
 bool RenderEngine_GPU::renderLoop() {
@@ -25,24 +30,20 @@ bool RenderEngine_GPU::renderLoop() {
     cudaEventCreate(&stop_kernel);
     cudaEventCreate(&stop);
 
-    //init vars
-    Camera_GPU cam(camera);
-    World_GPU wor(world);
-
-    unsigned char *bitmap_gpu;
-    cudaMalloc(reinterpret_cast<void**>(&bitmap_gpu), cam.size.y * cam.size.x * 3 * sizeof(unsigned char));
-
     cudaEventRecord(begin);
 
-    //DO copy all variables
-    cudaMemcpy(bitmap_gpu, camera->getBitmap(), cam.size.y * cam.size.x * 3 * sizeof(unsigned char), cudaMemcpyHostToDevice);
+    //Init random texture.
+    srand(static_cast<unsigned int>(clock()));
+    for(int j = 0; j<64; j++){
+        random_texture[j] = rand();
+    }
+    cudaMemcpy(random_texture_device, random_texture, SAMPLE * SAMPLE * sizeof(int), cudaMemcpyHostToDevice);
 
     dim3 threadsperblock(SAMPLE,SAMPLE,MAX_THREADS_IN_BLOCK/(SAMPLE*SAMPLE));
     dim3 blockspergrid(cam.size.y * COLUMNS_IN_ONCE/threadsperblock.z);
 
     cudaEventRecord(begin_kernel);
-    srand(static_cast<unsigned int>(clock()));
-    Main_Render_Kernel << < blockspergrid, threadsperblock >> >(i, bitmap_gpu, cam, wor, steps, rand());
+    Main_Render_Kernel << < blockspergrid, threadsperblock >> >(i, bitmap_gpu, cam, wor, steps, random_texture_device);
     cudaEventRecord(stop_kernel);
     gpuErrchk(cudaPeekAtLastError());
 
@@ -57,9 +58,6 @@ bool RenderEngine_GPU::renderLoop() {
     cudaEventElapsedTime(&kernelTime, begin_kernel, stop_kernel);
     cudaEventElapsedTime(&totalTime, begin, stop);
 
-    //Free variables
-    cudaFree(bitmap_gpu);
-
     if( (i+=COLUMNS_IN_ONCE) == camera->getWidth())
     {
         i = 0;
@@ -72,22 +70,24 @@ bool RenderEngine_GPU::renderLoop() {
     return false;
 }
 
+RenderEngine_GPU::~RenderEngine_GPU() {
+    //Free variables
+    cudaFree(bitmap_gpu);
+    cudaFree(random_texture_device);
+}
+
 __device__ float3 computeColor(Ray_GPU ray, unsigned int &seed, World_GPU wor) {
     float3 c = AMBIENT_COLOR;
 
     unsigned char sphere = wor.intersectRay(ray);
     int loop_end = 0;
     for (unsigned char i = 0; i < MAX_LEVEL; i++){
-        if(loop_end){
-            continue;
-        }
-        else if(sphere<wor.n) {
+        if(sphere<wor.n) {
             c = c*wor.spheres[sphere].col;
             SPHERE_MATERIAL sp_mat = wor.spheres[sphere].material;
             if(sp_mat == LIGHT){
                 //light
-                loop_end = 1;
-                continue;
+                break;
             }else if(sp_mat == DIELECTRIC){
                 //dielectric
                 float eta = wor.spheres[sphere].param;
@@ -145,16 +145,15 @@ __device__ float3 computeColor(Ray_GPU ray, unsigned int &seed, World_GPU wor) {
             sphere = wor.intersectRay(ray);
         }else{
             c = BACKGROUND;
-            loop_end = true;
+            break;
         }
     }
     return c;
 }
 
 __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps,
-                                   unsigned int mrand) { //j->row, i->column
+                                   int* rand_tex) { //j->row, i->column
     // <8,8,12>
-
     unsigned int p = threadIdx.x;
     unsigned int q = threadIdx.y;
 
@@ -162,19 +161,15 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
     unsigned int i = startI + j/cam.size.y;
     j %= cam.size.y;
 
-    unsigned int seed = ((blockIdx.x * blockDim.x) + threadIdx.x + cam.size.y * ((blockIdx.y * blockDim.y) + threadIdx.y) + cam.size.x * threadIdx.z + 2347*mrand)&RAND_MAX;
+    unsigned int seed = static_cast<unsigned int>(rand_tex[(q * SAMPLE + p + 3*steps)&(SAMPLE * SAMPLE - 1)]);
     Random_GPU(seed);
     float _i = i + (p + Random_GPU(seed)) / SAMPLE;
     float _j = j + (q + Random_GPU(seed)) / SAMPLE;
 
     //Initial Ray direction
-    float3 dir = make_float3(0,0,0);
-    dir += -cam.w * 1.207107f;
     float xw = (1.0f*cam.size.x/cam.size.y * (_i - cam.size.x / 2.0f + 0.5f) / cam.size.x);
     float yw = ((_j - cam.size.y / 2.0f + 0.5f) / cam.size.y);
-    dir += cam.u * xw;
-    dir += cam.v * yw;
-    dir = normalize(dir);
+    float3 dir = normalize(cam.u * xw + cam.v * yw - cam.w * 1.207107f);
 
     //Create ray
     Ray_GPU ray(cam.pos, dir);

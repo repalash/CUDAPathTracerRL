@@ -16,7 +16,7 @@
 #define MAX_THREADS_IN_BLOCK 768
 #define COLUMNS_IN_ONCE 640
 #define AMBIENT_COLOR make_float3(1,1,1)
-#define EPSILON 0.0001f
+#define EPSILON 0.01f
 #define INF 1<<24
 #define BACKGROUND make_float3(0,0,0)
 #define WARP_SIZE 32

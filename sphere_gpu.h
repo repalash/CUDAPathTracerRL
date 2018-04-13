@@ -28,15 +28,15 @@ struct Sphere_GPU {
             material = LIGHT;
             Color_To_float3(s->getLightSource()->getIntensity(), &col);
         }
-        if(s->getMaterial()->kt>0){
+        else if(s->getMaterial()->kt>0){
             material = DIELECTRIC;
             param = static_cast<float>(s->getMaterial()->eta);
         }
-        if(s->getMaterial()->n>0){
+        else if(s->getMaterial()->n>0){
             material = GLOSSY;
             param = static_cast<float>(s->getMaterial()->n);
         }
-        if(s->getMaterial()->kr>0){
+        else if(s->getMaterial()->kr>0){
             material = REFLECTIVE;
             param = static_cast<float>(s->getMaterial()->kr);
         }
