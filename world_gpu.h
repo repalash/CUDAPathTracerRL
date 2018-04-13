@@ -20,7 +20,7 @@ struct World_GPU{
 
     __device__ unsigned char intersectRay(Ray_GPU &ray) {
         float t = INF;
-        unsigned char sph = n;
+        unsigned char sph = 255;
         for (unsigned char i = 0; i < n; i++){
             float nt = spheres[i].intersect(ray);
             if(nt>0&&nt<t){

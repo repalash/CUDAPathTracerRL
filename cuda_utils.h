@@ -21,9 +21,9 @@ __host__ __inline__ inline void Color_To_float3(Color a, float3 *b) {
     b->z = static_cast<float>(a.b);
 }
 
-__device__ __inline__ inline float Random_GPU(unsigned int &s) {
-    s = (s * 16843009 + 826366247);
-    return 1.0f*((s>>16)&0x7fff)/0x7fff;
+__device__ __inline__ inline float Random_GPU(int &s) {
+    s = (s * 238905729 + 729962271);
+    return 1.0f*((s)&0x7fffff)/0x7fffff;
 }
 
 __device__ __inline__ inline float3 warpReduceSumTriple(float3 val) {

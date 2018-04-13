@@ -12,7 +12,7 @@
 
 class RenderEngine_GPU: public RenderEngine{
 
-    int random_texture[SAMPLE * SAMPLE];
+    int *random_texture;
     int *random_texture_device;
     unsigned char *bitmap_gpu;
     Camera_GPU cam;
@@ -26,8 +26,8 @@ class RenderEngine_GPU: public RenderEngine{
 };
 
 __global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps,
-                                   int* rand_tex);
-__device__ float3 computeColor(Ray_GPU i, unsigned int &j, World_GPU wor);
+                                   int* rand_tex, int clk);
+__device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor);
 
 
 #endif //PATHTRACER_CUDA_RENDERENGINE_GPU_H

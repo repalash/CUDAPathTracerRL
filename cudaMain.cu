@@ -30,6 +30,7 @@ using namespace glm;
 #include "triangle.h"
 #include "quadric.h"
 #include "renderengine_gpu.h"
+#include "scene_helper.h"
 
 //Globals
 GLuint program;
@@ -64,8 +65,8 @@ int init_resources(void)
     //Scene Setup...
 
     //Initialize raytracer objects
-    Vector3D camera_position(0, 3, 16);
-    Vector3D camera_target(0,0,0);
+    Vector3D camera_position(0, -3, 16);
+    Vector3D camera_target(0,-0.45,0);
     Vector3D camera_up(0, 1, 0);
     float camera_fovy =  45;
     camera = new Camera(camera_position, camera_target, camera_up, camera_fovy, screen_width, screen_height);
@@ -74,40 +75,7 @@ int init_resources(void)
     world->setAmbient(Color(1));
     world->setBackground(Color(0, 0, 0));
 
-    Material *mPlane = new Material(world);
-    mPlane->color = Color(0.9,0.9,0.9); mPlane->kr = 0;
-    Material *mPlane2 = new Material(world);
-    mPlane2->color = Color(0.9,0.2,0.3); mPlane2->kr = 0;
-    Material *mPlane3 = new Material(world);
-    mPlane3->color = Color(0.1,0.3,0.9); mPlane3->kr = 0;
-    Material *mPlane4 = new Material(world);
-    mPlane4->color = Color(0.1,0.9,0.2); mPlane4->kr = 0;
-    Material *glass = new Material(world); //dielectric
-    glass->color = Color(1, 0.95, 0.95); glass->eta = 1.25; glass->kt=1;
-    Material *glass2 = new Material(world); //dielectric
-    glass2->color = Color(1, 0.95, 0.95); glass2->eta = 1.8; glass2->kt=1;
-    Material *glossy = new Material(world); //glossy
-    glossy->color = Color(1, 1, 0.23);  glossy->n = 20;
-    Material *mirror = new Material(world); //mirror
-    mirror->color = Color(0.8, 1, 0.9);  mirror->kr = 0.8;
-    Material *polished = new Material(world); //mirror
-    polished->color = Color(1, 0.8, 0.9);  polished->kr = 0.13;
-
-    world->addObject(new Sphere(Vector3D(2, -3, 0), 2, glass2));
-    world->addObject(new Sphere(Vector3D(-4, -3, 0), 0.98, glass));
-    world->addObject(new Sphere(Vector3D(-2, -1, 0), 1.23, polished));
-    world->addObject(new Sphere(Vector3D(-0.5, -2, 0), 0.7, glass));
-    world->addObject(new Sphere(Vector3D(1, 2, 1), 1.5, glossy));
-
-    world->addObject(new Sphere(Vector3D(0, -2006, 0), 2000, mPlane)); //down
-    world->addObject(new Sphere(Vector3D(0, 2010, 0), 2000, mPlane)); //up
-    world->addObject(new Sphere(Vector3D(2009, 0, 0), 2000, mPlane3)); //right
-    world->addObject(new Sphere(Vector3D(-2009, 0, 0), 2000, mPlane2)); //left
-    world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mirror)); //front
-    world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane4)); //back
-
-    world->addLight(new PointLightSource(world, Vector3D(0, 16, 0), Color(4, 4, 4)), 8);
-    world->addLight(new PointLightSource(world, Vector3D(4.1, 0, 0), Color(3, 3, 3)), 1.5);
+    setupScene2(world);
 
     engine = new RenderEngine_GPU(world, camera);
 
@@ -116,7 +84,7 @@ int init_resources(void)
     glBindTexture(GL_TEXTURE_2D, texImage);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen_width, screen_height, 0, GL_RGB, GL_UNSIGNED_BYTE, camera->getBitmap());
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); //Show pixels when zoomed
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     uniform_texImage = glGetUniformLocation(program, "texImage");
     if(uniform_texImage == -1)
     {
@@ -164,7 +132,7 @@ void free_resources()
     delete(engine);
 }
 
-void onReshape(int width, int height) { //TODO: port for GLFW
+void onReshape(GLFWwindow *window, int width, int height) {
     screen_width = width;
     screen_height = height;
     glViewport(0, 0, screen_width, screen_height);
@@ -225,6 +193,7 @@ int cudaMain(int argc, char **argv) {
         return -1;
     }
     glfwMakeContextCurrent(window);
+    glfwSetWindowSizeCallback(window, GLFWwindowsizefun(onReshape));
 
     // Initialize GLEW
     if (glewInit() != GLEW_OK) {
