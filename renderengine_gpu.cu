@@ -11,7 +11,8 @@
 #include "curand_kernel.h"
 
 #define MAX_COORD 15
-#define ALPHA 0.05f
+#define ALPHA 0.001f
+
 
 RenderEngine_GPU::RenderEngine_GPU(World *_world, Camera *_camera) : RenderEngine(_world, _camera), wor(_world), cam(_camera) {
     //init vars
@@ -19,14 +20,16 @@ RenderEngine_GPU::RenderEngine_GPU(World *_world, Camera *_camera) : RenderEngin
     cudaMalloc(reinterpret_cast<void**>(&random_texture_device), cam.size.y * cam.size.x * sizeof(int));
     cudaMalloc(reinterpret_cast<void**>(&q_table_device), MAX_COORD * MAX_COORD * MAX_COORD * 8 * sizeof(float));
     random_texture = (int*)malloc(cam.size.y * cam.size.x * sizeof(int));
-    q_table = (float*)malloc(MAX_COORD * MAX_COORD * MAX_COORD * 8 * sizeof(float));
+    q_table = (QNode*)malloc(MAX_COORD * MAX_COORD * MAX_COORD * 8 * sizeof(QNode));
     //Init random texture.
     srand(static_cast<unsigned int>(clock()));
     for(int j = 0; j<cam.size.y * cam.size.x; j++){
         random_texture[j] = rand();
     }
     for(int j = 0; j<MAX_COORD * MAX_COORD * MAX_COORD * 8; j++){
-        q_table[j] = .1f*rand()/RAND_MAX;
+        for(int k=0; k<8; k++) {
+            q_table[j].v[k] = .1f * rand() / RAND_MAX;
+        }
     }
 
     //DO copy all variables
@@ -90,93 +93,109 @@ RenderEngine_GPU::~RenderEngine_GPU() {
     //Free variables
     cudaFree(bitmap_gpu);
     cudaFree(random_texture_device);
+    cudaFree(q_table_device);
     free(random_texture);
 }
 
 __device__ unsigned int get_q_index(float3 r){
     return clamp(static_cast<uint>((floor(r.x) + MAX_COORD) * MAX_COORD * MAX_COORD * 4
-                                           + (floor(r.y) + MAX_COORD) * MAX_COORD * 2
-                                           + floor(r.z) + MAX_COORD), (uint)0, (uint)MAX_COORD * MAX_COORD * MAX_COORD * 8);
+                                   + (floor(r.y) + MAX_COORD) * MAX_COORD * 2
+                                   + floor(r.z) + MAX_COORD), (uint)0, (uint)MAX_COORD * MAX_COORD * MAX_COORD * 8);
+}
+__device__ unsigned char get_dir_quad(float3 r){
+    return static_cast<unsigned char>(r.z>0 ?
+                                      (r.y>0 ? (r.x>0?0:1) : (r.x>0?2:3)) :
+                                      (r.y>0 ? (r.x>0?4:5) : (r.x>0?6:7)));
 }
 
 #define DEBUG 1
-__device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor, float* q_table) {
+__device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor, QNode* q_table) {
     float3 c = AMBIENT_COLOR, c_final;
 
     unsigned int q_index = get_q_index(ray.orig), last_index=0;
+    unsigned char dir_quad = get_dir_quad(ray.dir), last_dir_quad;
     unsigned char sphere = wor.intersectRay(ray);
     for (unsigned char i = 0; i < MAX_LEVEL; i++){
         last_index = q_index;
+        last_dir_quad = dir_quad;
         q_index = get_q_index(ray.orig);
+        dir_quad = get_dir_quad(ray.dir);
 //        c = make_float3((floor(ray.orig.x) + MAX_COORD)/(MAX_COORD*2), (floor(ray.orig.y) + MAX_COORD)/(MAX_COORD*2), (floor(ray.orig.z) + MAX_COORD)/(MAX_COORD*2));
-        if(i==0) c_final = make_float3(q_table[q_index]);
+        if(DEBUG && !i) c_final = make_float3(q_table[q_index].v[7]);
 //        break;
         if(sphere^255) {
             c = c*wor.spheres[sphere].col;
             SPHERE_MATERIAL sp_mat = wor.spheres[sphere].material;
             if(sp_mat == LIGHT){
                 //light
-                q_table[last_index] = q_table[last_index] * (1-ALPHA) + clamp01(length(wor.spheres[sphere].col))*ALPHA;
+                q_table[last_index].v[last_dir_quad] = q_table[last_index].v[last_dir_quad] * (1-ALPHA) + clamp01(length(wor.spheres[sphere].col))*ALPHA;
+                q_table[last_index].max = fmax(q_table[last_index].v[last_dir_quad], q_table[last_index].max);
                 break;
-            }else if(sp_mat == DIELECTRIC){
-                //dielectric
-                float eta = wor.spheres[sphere].param;
-                float cosTheta = dot(ray.dir, ray.normal);
-                bool isInside = cosTheta > 0;
-                float nc=1, nnt=isInside?eta/nc:nc/eta;
-                float cos2t = 1-nnt*nnt*(1-cosTheta*cosTheta);
-                if (cos2t<0){ //TIR
-                    ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
-                }else{
-                    cosTheta = -fabs(cosTheta);
-                    float3 refr_dir = normalize(ray.dir * nnt - ray.normal*((isInside?-1:1)*(cosTheta*nnt+sqrt(cos2t))));
-
-                    float a=eta-nc, b=eta+nc, R0=a*a/(b*b), c1 = 1-(isInside?dot(refr_dir, ray.normal):-cosTheta);
-                    float Re=R0+(1-R0)*c1*c1*c1*c1*c1,Tr=1-Re,P=.25f+.5f*Re,RP=Re/P,TP=Tr/(1-P);
-                    if (Random_GPU(seed) < P) {
-                        c = c * RP;
-                        ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
-                    }
-                    else{
-                        c = c * TP;
-                        ray.dir = refr_dir;
-                    }
-                }
-                sphere = wor.intersectRay(ray);
-            }else if(sp_mat == GLOSSY){
-                //glossy
-                float cosTheta = dot(ray.dir, ray.normal);
-                float n = wor.spheres[sphere].param;
-
-                float phi=2*M_PI*Random_GPU(seed), cosAlpha=pow(Random_GPU(seed), 1.f/(n+1)), sineAlpha = sqrt(1-cosAlpha*cosAlpha);
-                float rotAngle = 2*(acos(-cosTheta) + acos(cosAlpha) - M_PI/2);
-
-                float3 w = normalize(ray.dir - 2 * ray.normal * cosTheta);
-                float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
-                float3 v = cross(w,u);
-
-                float3 dDirection = u*cos(phi)*sineAlpha + v*sin(phi)*sineAlpha + w*cosAlpha;
-
-                if(dot(dDirection,ray.normal)<0) {
-                    float3 k = normalize(cross(w, ray.normal));
-                    dDirection = cos(rotAngle) * dDirection + sin(rotAngle) * cross(k, dDirection);
-                }
-                ray.dir = dDirection;
-                sphere = wor.intersectRay(ray);
-            }else if(sp_mat == REFLECTIVE && Random_GPU(seed) < wor.spheres[sphere].param){
-                float cosTheta = dot(ray.dir, ray.normal);
-                ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
-                sphere = wor.intersectRay(ray);
             }else {
-                //diffuse
-                q_table[last_index] = q_table[last_index] * (1-ALPHA) + clamp01(q_table[q_index]*0.8f)*ALPHA;
-                float alpha=2*M_PI* Random_GPU(seed),z= Random_GPU(seed), sineTheta = sqrtf(1-z);
-                float3 w = ray.normal;
-                float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
-                float3 v = cross(w,u);
-                ray.dir = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z);
-                sphere = wor.intersectRay(ray);
+                q_table[last_index].v[last_dir_quad] = q_table[last_index].v[last_dir_quad] * (1-ALPHA) + clamp01(q_table[q_index].max * 0.8f) * ALPHA;
+                q_table[last_index].max = fmax(q_table[last_index].v[last_dir_quad], q_table[last_index].max);
+                if (sp_mat == DIELECTRIC) {
+                    //dielectric
+                    float eta = wor.spheres[sphere].param;
+                    float cosTheta = dot(ray.dir, ray.normal);
+                    bool isInside = cosTheta > 0;
+                    float nc = 1, nnt = isInside ? eta / nc : nc / eta;
+                    float cos2t = 1 - nnt * nnt * (1 - cosTheta * cosTheta);
+                    if (cos2t < 0) { //TIR
+                        ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
+                    } else {
+                        cosTheta = -fabs(cosTheta);
+                        float3 refr_dir = normalize(
+                                ray.dir * nnt - ray.normal * ((isInside ? -1 : 1) * (cosTheta * nnt + sqrt(cos2t))));
 
+                        float a = eta - nc, b = eta + nc, R0 = a * a / (b * b), c1 =
+                                1 - (isInside ? dot(refr_dir, ray.normal) : -cosTheta);
+                        float Re = R0 + (1 - R0) * c1 * c1 * c1 * c1 * c1, Tr = 1 - Re, P = .25f + .5f * Re, RP =
+                                Re / P, TP = Tr / (1 - P);
+                        if (Random_GPU(seed) < P) {
+                            c = c * RP;
+                            ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
+                        } else {
+                            c = c * TP;
+                            ray.dir = refr_dir;
+                        }
+                    }
+                    sphere = wor.intersectRay(ray);
+                } else if (sp_mat == GLOSSY) {
+                    //glossy
+                    float cosTheta = dot(ray.dir, ray.normal);
+                    float n = wor.spheres[sphere].param;
+
+                    float phi = 2 * M_PI * Random_GPU(seed), cosAlpha = pow(Random_GPU(seed),
+                                                                            1.f / (n + 1)), sineAlpha = sqrt(
+                            1 - cosAlpha * cosAlpha);
+                    float rotAngle = 2 * (acos(-cosTheta) + acos(cosAlpha) - M_PI / 2);
+
+                    float3 w = normalize(ray.dir - 2 * ray.normal * cosTheta);
+                    float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
+                    float3 v = cross(w, u);
+
+                    float3 dDirection = u * cos(phi) * sineAlpha + v * sin(phi) * sineAlpha + w * cosAlpha;
+
+                    if (dot(dDirection, ray.normal) < 0) {
+                        float3 k = normalize(cross(w, ray.normal));
+                        dDirection = cos(rotAngle) * dDirection + sin(rotAngle) * cross(k, dDirection);
+                    }
+                    ray.dir = dDirection;
+                    sphere = wor.intersectRay(ray);
+                } else if (sp_mat == REFLECTIVE && Random_GPU(seed) < wor.spheres[sphere].param) {
+                    float cosTheta = dot(ray.dir, ray.normal);
+                    ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
+                    sphere = wor.intersectRay(ray);
+                } else {
+                    //diffuse
+                    float alpha = 2 * M_PI * Random_GPU(seed), z = Random_GPU(seed), sineTheta = sqrtf(1 - z);
+                    float3 w = ray.normal;
+                    float3 u = normalize(cross((fabs(w.x) > .1 ? make_float3(0, 1, 0) : make_float3(1, 0, 0)), w));
+                    float3 v = cross(w, u);
+                    ray.dir = u * cos(alpha) * sineTheta + v * sin(alpha) * sineTheta + w * sqrt(z);
+                    sphere = wor.intersectRay(ray);
+                }
             }
         }else{
 //            c = BACKGROUND;
@@ -190,7 +209,7 @@ __device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor, float* q_t
 }
 
 __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps,
-                                   int* rand_tex, int clk, float* q_table) { //j->row, i->column
+                                   int* rand_tex, int clk, QNode* q_table) { //j->row, i->column
     // <8,8,12>
     unsigned int p = threadIdx.x;
     unsigned int q = threadIdx.y;
@@ -224,6 +243,7 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
         c = c+val[threadIdx.z];
         c = clamp(c/(SAMPLE*SAMPLE), 0, 1);
         int index = (i + j*cam.size.x)*3;
+//        steps = 0;
         float f = 1.0f / (steps+1);
         bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * (f * steps) + 255 * c.x * f));
         bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * (f * steps) + 255 * c.y * f));

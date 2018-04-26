@@ -10,12 +10,17 @@
 #include "world_gpu.h"
 #include "camera_gpu.h"
 
+struct QNode{
+    float v[8];
+    float max;
+};
+
 class RenderEngine_GPU: public RenderEngine{
 
     int *random_texture;
     int *random_texture_device;
-    float *q_table;
-    float *q_table_device;
+    QNode *q_table;
+    QNode *q_table_device;
     unsigned char *bitmap_gpu;
     Camera_GPU cam;
     World_GPU wor;
@@ -27,9 +32,9 @@ class RenderEngine_GPU: public RenderEngine{
     virtual ~RenderEngine_GPU();
 };
 
-__global__ void Main_Render_Kernel(int startI, unsigned char* bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps,
-                                   int* rand_tex, int clk, float* q_table);
-__device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor, float* q_table);
+__global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps,
+                                   int* rand_tex, int clk, QNode* q_table);
+__device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor, QNode* q_table);
 
 
 #endif //PATHTRACER_CUDA_RENDERENGINE_GPU_H

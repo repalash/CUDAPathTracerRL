@@ -64,6 +64,14 @@ typedef unsigned int uint;
 typedef unsigned long ulong;
 typedef unsigned long long ulonglong;
 typedef long long longlong;
+
+//Atomic functions
+int atomicMax(int* address, int val);
+unsigned int atomicMax(unsigned int* address,
+                       unsigned int val);
+unsigned long long int atomicMax(unsigned long long int* address,
+                                 unsigned long long int val);
+
 #endif
 
 
