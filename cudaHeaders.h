@@ -15,7 +15,7 @@
 #define SAMPLE 8
 #define MAX_THREADS_IN_BLOCK 512
 #define RAND_TEX_SIZE 1024
-#define COLUMNS_IN_ONCE 640
+#define COLUMNS_IN_ONCE 320
 #define AMBIENT_COLOR make_float3(1,1,1)
 #define EPSILON 0.01f
 #define INF 1<<24

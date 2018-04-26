@@ -35,7 +35,7 @@ using namespace glm;
 //Globals
 GLuint program;
 GLint attribute_coord2d;
-int screen_width = 640, screen_height = 480; //Both even numbers
+int screen_width = 320, screen_height = 240; //Both even numbers
 float quadVertices[] = {-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1}; //2D screen space coordinates
 GLuint texImage;
 GLint uniform_texImage;
@@ -75,7 +75,7 @@ int init_resources(void)
     world->setAmbient(Color(1));
     world->setBackground(Color(0, 0, 0));
 
-    setupScene2(world);
+    setupScene3(world);
 
     engine = new RenderEngine_GPU(world, camera);
 
@@ -185,7 +185,7 @@ int cudaMain(int argc, char **argv) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Open a window and create its OpenGL context
-    window = glfwCreateWindow( screen_width, screen_height, "Path Tracer", NULL, NULL);
+    window = glfwCreateWindow( screen_width*4, screen_height*4, "Path Tracer", NULL, NULL);
     if( window == NULL ){
         fprintf( stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n" );
         getchar();
