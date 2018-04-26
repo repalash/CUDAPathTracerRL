@@ -10,19 +10,28 @@
 #include "ray_gpu.h"
 #include "curand_kernel.h"
 
+#define MAX_COORD 15
+#define ALPHA 0.05f
+
 RenderEngine_GPU::RenderEngine_GPU(World *_world, Camera *_camera) : RenderEngine(_world, _camera), wor(_world), cam(_camera) {
     //init vars
     cudaMalloc(reinterpret_cast<void**>(&bitmap_gpu), cam.size.y * cam.size.x * 3 * sizeof(unsigned char));
     cudaMalloc(reinterpret_cast<void**>(&random_texture_device), cam.size.y * cam.size.x * sizeof(int));
+    cudaMalloc(reinterpret_cast<void**>(&q_table_device), MAX_COORD * MAX_COORD * MAX_COORD * 8 * sizeof(float));
     random_texture = (int*)malloc(cam.size.y * cam.size.x * sizeof(int));
+    q_table = (float*)malloc(MAX_COORD * MAX_COORD * MAX_COORD * 8 * sizeof(float));
     //Init random texture.
     srand(static_cast<unsigned int>(clock()));
     for(int j = 0; j<cam.size.y * cam.size.x; j++){
         random_texture[j] = rand();
     }
-    cudaMemcpy(random_texture_device, random_texture, cam.size.y * cam.size.x * sizeof(int), cudaMemcpyHostToDevice);
+    for(int j = 0; j<MAX_COORD * MAX_COORD * MAX_COORD * 8; j++){
+        q_table[j] = .1f*rand()/RAND_MAX;
+    }
 
     //DO copy all variables
+    cudaMemcpy(random_texture_device, random_texture, cam.size.y * cam.size.x * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(q_table_device, q_table, MAX_COORD * MAX_COORD * MAX_COORD * 8 * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(bitmap_gpu, camera->getBitmap(), cam.size.y * cam.size.x * 3 * sizeof(unsigned char), cudaMemcpyHostToDevice);
 }
 
@@ -50,7 +59,7 @@ bool RenderEngine_GPU::renderLoop() {
     dim3 blockspergrid(cam.size.y * COLUMNS_IN_ONCE/threadsperblock.z);
 
     cudaEventRecord(begin_kernel);
-    Main_Render_Kernel << < blockspergrid, threadsperblock >> >(i, bitmap_gpu, cam, wor, steps, random_texture_device, clock());
+    Main_Render_Kernel << < blockspergrid, threadsperblock >> >(i, bitmap_gpu, cam, wor, steps, random_texture_device, clock(), q_table_device);
     cudaEventRecord(stop_kernel);
     gpuErrchk(cudaPeekAtLastError());
 
@@ -72,7 +81,7 @@ bool RenderEngine_GPU::renderLoop() {
         printf("GPU Time: %fms, %fms, steps: %d\n", kernelTime, totalTime -kernelTime, steps);
         camera->incSteps();
 //        std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
-        return steps >= 10;
+        return steps >= 400;
     }
     return false;
 }
@@ -84,17 +93,30 @@ RenderEngine_GPU::~RenderEngine_GPU() {
     free(random_texture);
 }
 
-__device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor) {
-    float3 c = AMBIENT_COLOR;
+__device__ unsigned int get_q_index(float3 r){
+    return clamp(static_cast<uint>((floor(r.x) + MAX_COORD) * MAX_COORD * MAX_COORD * 4
+                                           + (floor(r.y) + MAX_COORD) * MAX_COORD * 2
+                                           + floor(r.z) + MAX_COORD), (uint)0, (uint)MAX_COORD * MAX_COORD * MAX_COORD * 8);
+}
 
+#define DEBUG 1
+__device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor, float* q_table) {
+    float3 c = AMBIENT_COLOR, c_final;
+
+    unsigned int q_index = get_q_index(ray.orig), last_index=0;
     unsigned char sphere = wor.intersectRay(ray);
-
     for (unsigned char i = 0; i < MAX_LEVEL; i++){
+        last_index = q_index;
+        q_index = get_q_index(ray.orig);
+//        c = make_float3((floor(ray.orig.x) + MAX_COORD)/(MAX_COORD*2), (floor(ray.orig.y) + MAX_COORD)/(MAX_COORD*2), (floor(ray.orig.z) + MAX_COORD)/(MAX_COORD*2));
+        if(i==0) c_final = make_float3(q_table[q_index]);
+//        break;
         if(sphere^255) {
             c = c*wor.spheres[sphere].col;
             SPHERE_MATERIAL sp_mat = wor.spheres[sphere].material;
             if(sp_mat == LIGHT){
                 //light
+                q_table[last_index] = q_table[last_index] * (1-ALPHA) + clamp01(length(wor.spheres[sphere].col))*ALPHA;
                 break;
             }else if(sp_mat == DIELECTRIC){
                 //dielectric
@@ -120,6 +142,7 @@ __device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor) {
                         ray.dir = refr_dir;
                     }
                 }
+                sphere = wor.intersectRay(ray);
             }else if(sp_mat == GLOSSY){
                 //glossy
                 float cosTheta = dot(ray.dir, ray.normal);
@@ -139,18 +162,22 @@ __device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor) {
                     dDirection = cos(rotAngle) * dDirection + sin(rotAngle) * cross(k, dDirection);
                 }
                 ray.dir = dDirection;
+                sphere = wor.intersectRay(ray);
             }else if(sp_mat == REFLECTIVE && Random_GPU(seed) < wor.spheres[sphere].param){
                 float cosTheta = dot(ray.dir, ray.normal);
                 ray.dir = normalize(ray.dir - 2 * ray.normal * cosTheta);
+                sphere = wor.intersectRay(ray);
             }else {
                 //diffuse
+                q_table[last_index] = q_table[last_index] * (1-ALPHA) + clamp01(q_table[q_index]*0.8f)*ALPHA;
                 float alpha=2*M_PI* Random_GPU(seed),z= Random_GPU(seed), sineTheta = sqrtf(1-z);
                 float3 w = ray.normal;
                 float3 u = normalize(cross((fabs(w.x)>.1?make_float3(0,1,0):make_float3(1,0,0)),w));
                 float3 v = cross(w,u);
                 ray.dir = u*cos(alpha)*sineTheta + v*sin(alpha)*sineTheta + w*sqrt(z);
+                sphere = wor.intersectRay(ray);
+
             }
-            sphere = wor.intersectRay(ray);
         }else{
 //            c = BACKGROUND;
             break;
@@ -159,11 +186,11 @@ __device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor) {
             break;
         }
     }
-    return c;
+    return DEBUG?c_final:c;
 }
 
 __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps,
-                                   int* rand_tex, int clk) { //j->row, i->column
+                                   int* rand_tex, int clk, float* q_table) { //j->row, i->column
     // <8,8,12>
     unsigned int p = threadIdx.x;
     unsigned int q = threadIdx.y;
@@ -183,7 +210,7 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
 
     //Create ray
     Ray_GPU ray(cam.pos, dir);
-    float3 c = computeColor(ray, seed, wor);
+    float3 c = computeColor(ray, seed, wor, q_table);
 
     c = warpReduceSumTriple(c);
     __shared__ float3 val[MAX_THREADS_IN_BLOCK/(SAMPLE*SAMPLE)];

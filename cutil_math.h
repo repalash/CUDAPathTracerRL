@@ -69,6 +69,12 @@ inline __device__ __host__ float clamp(float f, float a, float b)
     return fmaxf(a, fminf(f, b));
 }
 
+// clamp01
+inline __device__ __host__ float clamp01(float f)
+{
+    return fmaxf(0, fminf(f, 1));
+}
+
 // int2 functions
 ////////////////////////////////////////////////////////////////////////////////
 

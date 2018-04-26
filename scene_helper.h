@@ -86,11 +86,10 @@ void setupScene3(World *world){
     world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mPlane)); //front
     world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane4)); //back
 
-//    world->addLight(new PointLightSource(world, Vector3D(2, 16, 0), Color(9, 9, 9)), 8);
-//    world->addLight(new PointLightSource(world, Vector3D(2, 16, 0), Color(9, 9, 9)), 8);
-    world->addLight(new PointLightSource(world, Vector3D(-0.5, 4, -3), Color(9, 9, 9)), 1);
-    world->addLight(new PointLightSource(world, Vector3D(-3, 5.5, -3), Color(9, 9, 9)), 1);
-    world->addLight(new PointLightSource(world, Vector3D(-5.5, 7, -3), Color(9, 9, 9)), 1);
+    world->addLight(new PointLightSource(world, Vector3D(2, 16, 0), Color(9, 9, 9)), 8);
+//    world->addLight(new PointLightSource(world, Vector3D(-0.5, 4, -3), Color(9, 9, 9)), 1);
+//    world->addLight(new PointLightSource(world, Vector3D(-3, 5.5, -3), Color(9, 9, 9)), 1);
+//    world->addLight(new PointLightSource(world, Vector3D(-5.5, 7, -3), Color(9, 9, 9)), 1);
 //    world->addLight(new PointLightSource(world, Vector3D(4.1, 0, 0), Color(4, 1, 2)), 1.5);
 //    world->addLight(new PointLightSource(world, Vector3D(0, -0.5, 0), Color(2, 7, 3)), 0.7);
 }
