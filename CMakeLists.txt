@@ -29,7 +29,14 @@ add_library(cuda_base
         vector3D.cpp vector3D.h
         world.cpp world.h
         cutil_math.h
-        dummy.cpp cudaHeaders.h camera_gpu.h world_gpu.h sphere_gpu.h ray_gpu.h cuda_utils.h scene_helper.h)
+        dummy.cpp
+        cudaHeaders.h pathtracer_params.h
+        camera_gpu.h world_gpu.h
+        sphere_gpu.h ray_gpu.h
+        cuda_utils.h scene_helper.h
+        material_functions.h
+        rl_helper_functions.h
+        )
 
 target_compile_features(cuda_base PUBLIC cxx_std_11)
 set_target_properties( cuda_base

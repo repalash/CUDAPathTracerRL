@@ -10,6 +10,7 @@
 #include "cudaHeaders.h"
 #include "cuda_utils.h"
 #include "ray_gpu.h"
+#include "pathtracer_params.h"
 
 enum SPHERE_MATERIAL { DIFFUSE, LIGHT, DIELECTRIC, GLOSSY, REFLECTIVE };
 
@@ -52,6 +53,5 @@ struct Sphere_GPU {
         return t;
     }
 };
-
 
 #endif //PATHTRACER_CUDA_SPHERE_GPU_H

@@ -7,6 +7,7 @@
 
 #include "world.h"
 #include "sphere_gpu.h"
+#include "pathtracer_params.h"
 
 struct World_GPU{
     Sphere_GPU spheres[20];

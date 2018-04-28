@@ -10,10 +10,7 @@
 #include "world_gpu.h"
 #include "camera_gpu.h"
 
-struct QNode{
-    float v[8];
-    float max;
-};
+struct QNode;
 
 class RenderEngine_GPU: public RenderEngine{
 
@@ -34,7 +31,5 @@ class RenderEngine_GPU: public RenderEngine{
 
 __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU cam, World_GPU wor, unsigned int steps,
                                    int* rand_tex, int clk, QNode* q_table);
-__device__ float3 computeColor(Ray_GPU ray, int &seed, World_GPU wor, QNode* q_table);
-
 
 #endif //PATHTRACER_CUDA_RENDERENGINE_GPU_H

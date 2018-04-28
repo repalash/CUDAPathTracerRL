@@ -12,17 +12,6 @@
 #include <cstdlib>
 #include "cutil_math.h"
 
-#define SAMPLE 8
-#define MAX_THREADS_IN_BLOCK 512
-#define RAND_TEX_SIZE 1024
-#define COLUMNS_IN_ONCE 320
-#define AMBIENT_COLOR make_float3(1,1,1)
-#define EPSILON 0.01f
-#define INF 1<<24
-#define BACKGROUND make_float3(0,0,0)
-#define WARP_SIZE 32
-
-
 //int cudaMain(int argc, char **argv);
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
