@@ -25,7 +25,7 @@ RenderEngine_GPU::RenderEngine_GPU(World *_world, Camera *_camera) : RenderEngin
     }
     for(int j = 0; j<MAX_COORD * MAX_COORD * MAX_COORD * 8; j++){
         for(int k=0; k<8; k++) {
-            q_table[j].v[k] = .1f * rand() / RAND_MAX;
+            q_table[j].v[k] = 0.f;//.1f * rand() / RAND_MAX;
         }
     }
 
@@ -81,7 +81,7 @@ bool RenderEngine_GPU::renderLoop() {
         printf("GPU Time: %fms, %fms, steps: %d\n", kernelTime, totalTime -kernelTime, steps);
         camera->incSteps();
 //        std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
-        return steps >= 400;
+        return steps >= 5;
     }
     return false;
 }
