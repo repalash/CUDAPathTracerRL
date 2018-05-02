@@ -82,7 +82,7 @@ bool RenderEngine_GPU::renderLoop() {
         printf("GPU Time: %fms, %fms, steps: %d\n", kernelTime, totalTime -kernelTime, steps);
         camera->incSteps();
 //        std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
-        return steps >= 20;
+        return steps >= 30;
     }
     return false;
 }

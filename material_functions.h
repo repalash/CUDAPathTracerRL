@@ -125,7 +125,7 @@ __device__ float3 computeColor(Ray_GPU &ray, int &seed, World_GPU &wor, QNode* &
                     float3 direction = make_float3(0);// = shadeDiffuse(ray, seed);
                     unsigned char t_index;// = getDirectionOctant(direction);
                     QNode q = q_table[q_index];
-                    if(steps>3) for(int li=0; li<16; li++) {
+                    if(steps>3&&i) for(int li=0; li<8; li++) {
                         if(DEBUG && !i) c_q_table = make_float3(0.f);
                         direction = shadeDiffuse(ray, seed);
                         t_index = getDirectionOctant(direction);

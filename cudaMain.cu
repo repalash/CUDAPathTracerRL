@@ -35,7 +35,7 @@ using namespace glm;
 //Globals
 GLuint program;
 GLint attribute_coord2d;
-int screen_width = 320, screen_height = 240; //Both even numbers
+int screen_width = 1024, screen_height = 768; //Both even numbers
 float quadVertices[] = {-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1}; //2D screen space coordinates
 GLuint texImage;
 GLint uniform_texImage;
@@ -75,10 +75,13 @@ int init_resources(void)
     world->setAmbient(Color(1));
     world->setBackground(Color(0, 0, 0));
 
-    setupScene4(world);
+    setupScene5(world);
 
+#if ENABLE_GPU
     engine = new RenderEngine_GPU(world, camera);
-
+#else
+    engine = new RenderEngine(world, camera);
+#endif
     //Initialise texture
     glGenTextures(1, &texImage);
     glBindTexture(GL_TEXTURE_2D, texImage);
