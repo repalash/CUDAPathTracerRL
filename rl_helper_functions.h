@@ -17,9 +17,9 @@ struct QNode{
 #if ENABLE_RL
 
 __device__ unsigned int getQIndex(float3 &r) {
-    return clamp(static_cast<uint>((floor(r.x) + MAX_COORD) * MAX_COORD * MAX_COORD * 4
-                                   + (floor(r.y) + MAX_COORD) * MAX_COORD * 2
-                                   + floor(r.z) + MAX_COORD), (uint) 0, (uint) MAX_COORD * MAX_COORD * MAX_COORD * 8);
+    return clamp(static_cast<uint>((floor(r.x*2) + MAX_COORD) * MAX_COORD * MAX_COORD * 4
+                                   + (floor(r.y*2) + MAX_COORD) * MAX_COORD * 2
+                                   + floor(r.z*2) + MAX_COORD), (uint) 0, (uint) MAX_COORD * MAX_COORD * MAX_COORD * 8);
 }
 
 __device__ unsigned char getDirectionOctant(float3 &r) {

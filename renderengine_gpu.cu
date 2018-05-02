@@ -27,6 +27,7 @@ RenderEngine_GPU::RenderEngine_GPU(World *_world, Camera *_camera) : RenderEngin
         for(int k=0; k<8; k++) {
             q_table[j].v[k] = 0.f;//.1f * rand() / RAND_MAX;
         }
+        q_table[j].max = 0.f;
     }
 
     //DO copy all variables
@@ -81,7 +82,7 @@ bool RenderEngine_GPU::renderLoop() {
         printf("GPU Time: %fms, %fms, steps: %d\n", kernelTime, totalTime -kernelTime, steps);
         camera->incSteps();
 //        std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
-        return steps >= 5;
+        return steps >= 20;
     }
     return false;
 }
@@ -115,7 +116,7 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
 
     //Create ray
     Ray_GPU ray(cam.pos, dir);
-    float3 c = computeColor(ray, seed, wor, q_table);
+    float3 c = computeColor(ray, seed, wor, q_table, steps);
 
     c = warpReduceSumTriple(c);
     __shared__ float3 val[MAX_THREADS_IN_BLOCK/(SAMPLE*SAMPLE)];
@@ -131,8 +132,11 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
         int index = (i + j*cam.size.x)*3;
 //        steps = 0;
         float f = 1.0f / (steps+1);
-        bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * (f * steps) + 255 * c.x * f));
-        bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * (f * steps) + 255 * c.y * f));
-        bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * (f * steps) + 255 * c.z * f));
+//        if(length(c)>0.01)
+        {
+            bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * (f * steps) + 255 * c.x * f));
+            bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * (f * steps) + 255 * c.y * f));
+            bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * (f * steps) + 255 * c.z * f));
+        }
     }
 }
