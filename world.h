@@ -1,8 +1,6 @@
 #ifndef _WORLD_H_
 #define _WORLD_H_
 
-#define MAX_LEVEL 4
-
 #include <vector>
 #include "object.h"
 #include "lightsource.h"

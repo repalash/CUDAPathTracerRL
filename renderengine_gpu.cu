@@ -40,6 +40,7 @@ bool RenderEngine_GPU::renderLoop() {
 
     static int i = 0;
     static int steps = 0;
+    static float totalTime = 0;
 
     cudaEvent_t begin, begin_kernel, stop_kernel, stop;
     cudaEventCreate(&begin);
@@ -71,23 +72,22 @@ bool RenderEngine_GPU::renderLoop() {
     cudaEventSynchronize(stop_kernel);
     cudaEventSynchronize(stop);
 
-    float kernelTime, totalTime; // Initialize elapsedTime;
+    float kernelTime, time; // Initialize elapsedTime;
     cudaEventElapsedTime(&kernelTime, begin_kernel, stop_kernel);
-    cudaEventElapsedTime(&totalTime, begin, stop);
-
+    cudaEventElapsedTime(&time, begin, stop);
+    totalTime += time;
     if( (i+=COLUMNS_IN_ONCE) == camera->getWidth())
     {
         i = 0;
         steps++;
-        printf("GPU Time: %fms, %fms, steps: %d\n", kernelTime, totalTime -kernelTime, steps);
+        printf("GPU Time: %fms, %fms; steps: %d; Total Time: %f; SPP: %d; Rays: %d\n", kernelTime, time-kernelTime, steps, totalTime, 64*(steps+1), 64*(steps+1)*cam.size.x*cam.size.y);
         camera->incSteps();
-//        std::cout<<"Samples Done: "<<camera->getSteps()*SAMPLE*SAMPLE<<std::endl;
-        return steps >= 30;
+        return totalTime > 10 * 1000; //break after 30sec
     }
     return false;
 }
 
-RenderEngine_GPU::~RenderEngine_GPU() {
+RenderEngine_GPU::~RenderEngine_GPU(){
     //Free variables
     cudaFree(bitmap_gpu);
     cudaFree(random_texture_device);
@@ -118,7 +118,7 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
     Ray_GPU ray(cam.pos, dir);
     float3 c = computeColor(ray, seed, wor, q_table, steps);
 
-    c = warpReduceSumTriple(c);
+    c = warpAddColors(c);
     __shared__ float3 val[MAX_THREADS_IN_BLOCK/(SAMPLE*SAMPLE)];
     val[threadIdx.z] = make_float3(1,0,0);
     __syncthreads();
@@ -130,13 +130,9 @@ __global__ void Main_Render_Kernel(int startI, unsigned char *bitmap, Camera_GPU
         c = c+val[threadIdx.z];
         c = clamp(c/(SAMPLE*SAMPLE), 0, 1);
         int index = (i + j*cam.size.x)*3;
-//        steps = 0;
         float f = 1.0f / (steps+1);
-//        if(length(c)>0.01)
-        {
-            bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * (f * steps) + 255 * c.x * f));
-            bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * (f * steps) + 255 * c.y * f));
-            bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * (f * steps) + 255 * c.z * f));
-        }
+        bitmap[index + 0] = (unsigned char) ((bitmap[index + 0] * (f * steps) + 255 * c.x * f));
+        bitmap[index + 1] = (unsigned char) ((bitmap[index + 1] * (f * steps) + 255 * c.y * f));
+        bitmap[index + 2] = (unsigned char) ((bitmap[index + 2] * (f * steps) + 255 * c.z * f));
     }
 }

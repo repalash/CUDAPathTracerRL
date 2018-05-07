@@ -1,13 +1,14 @@
 #include <iostream>
 #include "world.h"
 #include "pointlightsource.h"
+#include "pathtracer_params.h"
 
 using namespace std;
 
 float World::firstIntersection(Ray& ray)
 {
-	for(int i=0; i<objectList.size(); i++)
-		objectList[i]->intersect(ray);
+	for (auto &i : objectList)
+		i->intersect(ray);
 	return ray.getParameter();
 }
 

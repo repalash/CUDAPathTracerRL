@@ -29,9 +29,9 @@ __device__ unsigned char getDirectionOctant(float3 &r) {
 }
 
 __device__ __inline__ inline void
-updateQTable(QNode *&q_table, unsigned int &last_index, unsigned char &last_dir_quad, float newVal) {
-    q_table[last_index].v[last_dir_quad] = q_table[last_index].v[last_dir_quad] * (1 - ALPHA) + newVal * ALPHA;
-    q_table[last_index].max = fmax(q_table[last_index].v[last_dir_quad], q_table[last_index].max);
+    updateQTable(QNode *&q_table, unsigned int &last_index, unsigned char &dir_oct, float newVal) {
+        q_table[last_index].v[dir_oct] = q_table[last_index].v[dir_oct] * (1 - ALPHA) + newVal * ALPHA;
+        q_table[last_index].max = fmax(q_table[last_index].v[dir_oct], q_table[last_index].max);
 }
 
 #endif

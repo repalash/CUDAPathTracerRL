@@ -26,7 +26,7 @@ __device__ __inline__ inline float Random_GPU(int &s) {
     return 1.0f*((s)&0x7fffff)/0x7fffff;
 }
 
-__device__ __inline__ inline float3 warpReduceSumTriple(float3 val) {
+__device__ __inline__ inline float3 warpAddColors(float3 val) {
 #pragma unroll
     for (int offset = warpSize / 2; offset > 0; offset /= 2) {
         val.x += __shfl_xor(val.x, offset);

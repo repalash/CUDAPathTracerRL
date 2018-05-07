@@ -38,12 +38,12 @@ void setupScene1(World *world){
     world->addObject(new Sphere(Vector3D(0, 2010, 0), 2000, mPlane)); //up
     world->addObject(new Sphere(Vector3D(2009, 0, 0), 2000, mPlane3)); //right
     world->addObject(new Sphere(Vector3D(-2009, 0, 0), 2000, mPlane2)); //left
-    world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mirror)); //front
+    world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mPlane4)); //front
     world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane4)); //back
 
-    world->addLight(new PointLightSource(world, Vector3D(0, 16, 0), Color(5, 5, 5)), 8);
-    world->addLight(new PointLightSource(world, Vector3D(4.1, 0, 0), Color(4, 1, 2)), 1.5);
-    world->addLight(new PointLightSource(world, Vector3D(0, -0.5, 0), Color(2, 7, 3)), 0.7);
+    world->addLight(new PointLightSource(world, Vector3D(0, 11, 0), Color(5, 5, 5)), 4);
+    world->addLight(new PointLightSource(world, Vector3D(4.1, 0, 0), Color(4, 1, 1)), 1.5);
+    world->addLight(new PointLightSource(world, Vector3D(0, -0.5, 0), Color(1, 4.5, 3)), 0.7);
 }
 
 
@@ -177,7 +177,7 @@ void setupScene5(World *world){
 
     world->addObject(new Sphere(Vector3D(-3.5, -1, 0), 3.1, mPlane));
 
-    world->addObject(new Sphere(Vector3D(-4.2, -4, 1), 0.5, mPlane4));
+    world->addObject(new Sphere(Vector3D(-4.2, -4, 1), 0.5, glassRed));
     world->addObject(new Sphere(Vector3D(5, 4, 3), 0.5, mPlane3));
 
     world->addObject(new Sphere(Vector3D(0, -2006, 0), 2000, mPlane)); //down
@@ -188,9 +188,9 @@ void setupScene5(World *world){
     world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane4)); //back
 
 //    world->addLight(new PointLightSource(world, Vector3D(2, 16, 0), Color(9, 9, 9)), 8);
-    world->addLight(new PointLightSource(world, Vector3D(-0.5, 4, -3), Color(9, 9, 9)), 1);
+//    world->addLight(new PointLightSource(world, Vector3D(-0.5, 4, -3), Color(9, 9, 9)), 1);
     world->addLight(new PointLightSource(world, Vector3D(-3.5, 3.5, 0), Color(10, 10, 10)), 1);
-    world->addLight(new PointLightSource(world, Vector3D(-5.5, 7, -3), Color(9, 9, 9)), 1);
+//    world->addLight(new PointLightSource(world, Vector3D(-5.5, 7, -3), Color(9, 9, 9)), 1);
 //    world->addLight(new PointLightSource(world, Vector3D(4.1, 0, 0), Color(4, 1, 2)), 1.5);
 //    world->addLight(new PointLightSource(world, Vector3D(0, -0.5, 0), Color(2, 7, 3)), 0.7);
 }
@@ -203,7 +203,7 @@ void setupScene2(World *world){
     auto *mPlane3 = new Material(world);
     mPlane3->color = Color(0.1,0.3,0.9); mPlane3->kr = 0;
     auto *mPlane4 = new Material(world);
-    mPlane4->color = Color(0.1,0.9,0.2); mPlane4->kr = 0;
+    mPlane4->color = Color(0.8,1.5,0.2); mPlane4->kr = 0;
     auto *glass = new Material(world); //dielectric
     glass->color = Color(1, 0.95, 0.95); glass->eta = 1.25; glass->kt=1;
     auto *glass2 = new Material(world); //dielectric
@@ -222,16 +222,14 @@ void setupScene2(World *world){
     world->addObject(new Sphere(Vector3D(0, 2.2, 0), 0.9, glass2));
     world->addObject(new Sphere(Vector3D(0, 4.3, 0), 0.65, glassRed));
 
-    world->addObject(new Sphere(Vector3D(0, -2006, 0), 2000, mPlane)); //down
-    world->addObject(new Sphere(Vector3D(0, 2010, 0), 2000, mPlane4)); //up
+    world->addObject(new Sphere(Vector3D(0, -2006, 0), 2000, mPlane4)); //down
+    world->addObject(new Sphere(Vector3D(0, 2010, 0), 2000, mPlane)); //up
     world->addObject(new Sphere(Vector3D(2009, 0, 0), 2000, mPlane3)); //right
     world->addObject(new Sphere(Vector3D(-2009, 0, 0), 2000, mPlane2)); //left
     world->addObject(new Sphere(Vector3D(0, 0, -2012), 2000, mPlane)); //front
     world->addObject(new Sphere(Vector3D(0, 0, 2016), 2000, mPlane4)); //back
 
-    world->addLight(new PointLightSource(world, Vector3D(0, 16, 0), Color(9, 9, 9)), 8);
-//    world->addLight(new PointLightSource(world, Vector3D(4.1, 0, 0), Color(4, 1, 2)), 1.5);
-//    world->addLight(new PointLightSource(world, Vector3D(0, -0.5, 0), Color(2, 7, 3)), 0.7);
+    world->addLight(new PointLightSource(world, Vector3D(0, 8.5, 0), Color(4, 4, 4)), 1.8);
 }
 
 

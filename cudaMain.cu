@@ -35,7 +35,7 @@ using namespace glm;
 //Globals
 GLuint program;
 GLint attribute_coord2d;
-int screen_width = 1024, screen_height = 768; //Both even numbers
+int screen_width = 640, screen_height = 480; //Both even numbers
 float quadVertices[] = {-1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1}; //2D screen space coordinates
 GLuint texImage;
 GLint uniform_texImage;

@@ -79,19 +79,19 @@ __device__ float3 computeColor(Ray_GPU &ray, int &seed, World_GPU &wor, QNode* &
 
 #if ENABLE_RL
     unsigned int q_index = getQIndex(ray.orig), last_index=0;
-    unsigned char dir_quad = getDirectionOctant(ray.dir), last_dir_quad=0;
+    unsigned char dir_quad = getDirectionOctant(ray.dir), dir_oct=0;
 #endif
     unsigned char sphere = wor.intersectRay(ray);
     bool isL = false;
     for (unsigned char i = 0; i < MAX_LEVEL; i++){
 #if ENABLE_RL
         last_index = q_index;
-//        last_dir_quad = dir_quad;
+//        dir_oct = dir_quad;
         q_index = getQIndex(ray.orig);
-        last_dir_quad = getDirectionOctant(ray.dir);
+        dir_oct = getDirectionOctant(ray.dir);
 //        c = make_float3((floor(ray.orig.x) + MAX_COORD)/(MAX_COORD*2), (floor(ray.orig.y) + MAX_COORD)/(MAX_COORD*2), (floor(ray.orig.z) + MAX_COORD)/(MAX_COORD*2));
-//        if(DEBUG && !i) c_q_table = make_float3(q_table[q_index].v[3]);
-        if(DEBUG && !i) c_q_table = (ray.dir);
+        if(DEBUG && !i) c_q_table = make_float3(q_table[q_index].max);
+//        if(DEBUG && !i) c_q_table = (ray.dir);
 #endif
 //        break;
         if(sphere^255) {
@@ -101,12 +101,12 @@ __device__ float3 computeColor(Ray_GPU &ray, int &seed, World_GPU &wor, QNode* &
                 //light
                 isL = true;
 #if ENABLE_RL
-                updateQTable(q_table, last_index, last_dir_quad, clamp01(length(wor.spheres[sphere].col)));
+                updateQTable(q_table, last_index, dir_oct, clamp01(length(wor.spheres[sphere].col)));
 #endif
                 break;
             }else {
 #if ENABLE_RL
-                updateQTable(q_table, last_index, last_dir_quad, clamp01(q_table[q_index].max * 0.8f));
+                updateQTable(q_table, last_index, dir_oct, clamp01(q_table[q_index].max * 0.8f));
 #endif
                 if (sp_mat == DIELECTRIC) {
                     //dielectric
@@ -126,18 +126,18 @@ __device__ float3 computeColor(Ray_GPU &ray, int &seed, World_GPU &wor, QNode* &
                     unsigned char t_index;// = getDirectionOctant(direction);
                     QNode q = q_table[q_index];
                     if(steps>3&&i) for(int li=0; li<8; li++) {
-                        if(DEBUG && !i) c_q_table = make_float3(0.f);
+//                        if(DEBUG && !i) c_q_table = make_float3(0.f);
                         direction = shadeDiffuse(ray, seed);
                         t_index = getDirectionOctant(direction);
                         if (q.v[t_index] > 0.75 * q.max) {
-                            if(DEBUG && !i) c_q_table = make_float3(t_index/7.f);
+//                            if(DEBUG && !i) c_q_table = make_float3(t_index/7.f);
                             break;
                         }
                     }else direction = shadeDiffuse(ray, seed);
 
 //                    if(DEBUG && !i) for(int li=0;li<8;li++){
-//                        if(q.v[li] < 0.95*q.max)
-//                            c_q_table = make_float3(li/7.f);
+//                        if(q.v[li] > 0.75*q.max)
+//                            c_q_table = make_float3(li&4?1:0, li&2?1:0, li&1?1:0);
 //                    }
                     ray.dir = direction;
 #else
@@ -150,8 +150,8 @@ __device__ float3 computeColor(Ray_GPU &ray, int &seed, World_GPU &wor, QNode* &
 //            c = BACKGROUND;
             break;
         }
-//        if(length(c) < 0.07)
-//            break;
+        if(length(c) < 0.07)
+            break;
     }
     return DEBUG?c_q_table:isL?c:make_float3(0);
 }
